@@ -425,7 +425,7 @@ public class BlockEventHandler implements Listener
         {
             if (!playerData.warnedAboutBuildingOutsideClaims && !player.hasPermission("griefprevention.adminclaims")
                     && player.hasPermission("griefprevention.createclaims") && ((playerData.lastClaim == null
-                    && playerData.getClaims().size() == 0) || (playerData.lastClaim != null
+                    && playerData.getClaims().isEmpty()) || (playerData.lastClaim != null
                     && playerData.lastClaim.isNear(player.getLocation(), 15))))
             {
                 Long now = null;
@@ -493,8 +493,7 @@ public class BlockEventHandler implements Listener
 
     static boolean isActiveBlock(Material type)
     {
-        if (type == Material.HOPPER || type == Material.BEACON || type == Material.SPAWNER) return true;
-        return false;
+        return type == Material.HOPPER || type == Material.BEACON || type == Material.SPAWNER;
     }
 
     private static final BlockFace[] HORIZONTAL_DIRECTIONS = new BlockFace[] {

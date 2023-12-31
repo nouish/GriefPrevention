@@ -18,6 +18,7 @@
 
 package me.ryanhamshire.GriefPrevention;
 
+import com.google.common.io.FileWriteMode;
 import com.google.common.io.Files;
 import com.griefprevention.visualization.BoundaryVisualization;
 import com.griefprevention.visualization.VisualizationType;
@@ -49,7 +50,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
@@ -270,10 +271,10 @@ public abstract class DataStore
                         "nigger\nniggers\nniger\nnigga\nnigers\nniggas\n" +
                                 "fag\nfags\nfaggot\nfaggots\nfeggit\nfeggits\nfaggit\nfaggits\n" +
                                 "cunt\ncunts\nwhore\nwhores\nslut\nsluts\n";
-                Files.append(defaultWords, bannedWordsFile, Charset.forName("UTF-8"));
+                Files.asCharSink(bannedWordsFile, StandardCharsets.UTF_8, FileWriteMode.APPEND).write(defaultWords);
             }
 
-            return Files.readLines(bannedWordsFile, Charset.forName("UTF-8"));
+            return Files.readLines(bannedWordsFile, StandardCharsets.UTF_8);
         }
         catch (Exception e)
         {
@@ -1061,8 +1062,8 @@ public abstract class DataStore
                 }
 
                 //write data to file
-                File playerDataFile = new File(playerDataFolderPath + File.separator + playerID + ".ignore");
-                Files.write(fileContent.toString().trim().getBytes("UTF-8"), playerDataFile);
+                File playerDataFile = new File(playerDataFolderPath, playerID + ".ignore");
+                Files.write(fileContent.toString().trim().getBytes(StandardCharsets.UTF_8), playerDataFile);
             }
 
             //if any problem, log it

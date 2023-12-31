@@ -18,11 +18,12 @@
 
 package me.ryanhamshire.GriefPrevention;
 
+import com.google.common.io.FileWriteMode;
 import com.google.common.io.Files;
 import org.bukkit.scheduler.BukkitScheduler;
 
 import java.io.File;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -33,7 +34,7 @@ class CustomLogger
 {
     private final SimpleDateFormat timestampFormat = new SimpleDateFormat("HH:mm");
     private final SimpleDateFormat filenameFormat = new SimpleDateFormat("yyyy_MM_dd");
-    private final String logFolderPath = DataStore.dataLayerFolderPath + File.separator + "Logs";
+    private final File LOG_FOLDER = new File(DataStore.dataLayerFolderPath, "Logs");
     private final int secondsBetweenWrites = 300;
 
     //stringbuilder is not thread safe, stringbuffer is
@@ -42,8 +43,7 @@ class CustomLogger
     CustomLogger()
     {
         //ensure log folder exists
-        File logFolder = new File(this.logFolderPath);
-        logFolder.mkdirs();
+        LOG_FOLDER.mkdirs();
 
         //delete any outdated log files immediately
         this.DeleteExpiredLogs();
@@ -99,19 +99,18 @@ class CustomLogger
         try
         {
             //if nothing to write, stop here
-            if (this.queuedEntries.length() == 0) return;
+            if (queuedEntries.isEmpty()) return;
 
             //determine filename based on date
             String filename = this.filenameFormat.format(new Date()) + ".log";
-            String filepath = this.logFolderPath + File.separator + filename;
-            File logFile = new File(filepath);
+            File logFile = new File(LOG_FOLDER, filename);
 
             //dump content
-            Files.append(this.queuedEntries.toString(), logFile, Charset.forName("UTF-8"));
+            Files.asCharSink(logFile, StandardCharsets.UTF_8, FileWriteMode.APPEND).write(queuedEntries.toString());
 
             //in case of a failure to write the above due to exception,
             //the unwritten entries will remain the buffer for the next write to retry
-            this.queuedEntries.setLength(0);
+            queuedEntries.setLength(0);
         }
         catch (Exception e)
         {
@@ -124,8 +123,7 @@ class CustomLogger
         try
         {
             //get list of log files
-            File logFolder = new File(this.logFolderPath);
-            File[] files = logFolder.listFiles();
+            File[] files = LOG_FOLDER.listFiles();
 
             //delete any created before x days ago
             int daysToKeepLogs = GriefPrevention.instance.config_logs_daysToKeep;
@@ -174,7 +172,6 @@ class CustomLogger
             WriteEntries();
         }
     }
-
     private class ExpiredLogRemover implements Runnable
     {
         @Override
