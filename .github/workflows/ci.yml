@@ -22,5 +22,14 @@ jobs:
           distribution: temurin
           cache: maven
 
-      - name: "Test"
-        run: mvn --batch-mode package
+      - name: "Build with Maven"
+        run: |
+          mvn --version
+          mvn --batch-mode package
+          echo "artifactName=$(mvn help:evaluate -Dexpression=project.build.finalName -q -DforceStdout)" >> $GITHUB_ENV
+
+      - name: "Upload Artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.artifactName }}
+          path: target/*.jar
