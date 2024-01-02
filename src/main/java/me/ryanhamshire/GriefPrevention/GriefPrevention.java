@@ -25,6 +25,10 @@ import me.ryanhamshire.GriefPrevention.events.PreventBlockBreakEvent;
 import me.ryanhamshire.GriefPrevention.events.SaveTrappedPlayerEvent;
 import me.ryanhamshire.GriefPrevention.events.TrustChangedEvent;
 import me.ryanhamshire.GriefPrevention.metrics.MetricsHandler;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.ComponentBuilder;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.hover.content.Text;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.BanList;
 import org.bukkit.BanList.Type;
@@ -65,6 +69,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
@@ -1491,54 +1496,91 @@ public class GriefPrevention extends JavaPlugin
             ArrayList<String> managers = new ArrayList<>();
             claim.getPermissions(builders, containers, accessors, managers);
 
-            GriefPrevention.sendMessage(player, TextMode.Info, Messages.TrustListHeader, claim.getOwnerName());
+            player.spigot().sendMessage(new ComponentBuilder()
+                    .append("Explicit permissions here:")
+                    .color(net.md_5.bungee.api.ChatColor.YELLOW)
+                    .event(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(new ComponentBuilder()
+                            .append("Claim Information:").color(net.md_5.bungee.api.ChatColor.GREEN)
+                            .append("\n")
+                            .append("ID: ")
+                            .color(net.md_5.bungee.api.ChatColor.GRAY)
+                            .append(String.valueOf(claim.id))
+                            .color(net.md_5.bungee.api.ChatColor.YELLOW)
+                            .append("\n")
+                            .append("Owner: ")
+                            .color(net.md_5.bungee.api.ChatColor.GRAY)
+                            .append(trustEntryToPlayerName(claim.ownerID == null ? "public" : claim.ownerID.toString()))
+                            .color(net.md_5.bungee.api.ChatColor.YELLOW)
+                            .append("\n")
+                            .append("Size: ")
+                            .color(net.md_5.bungee.api.ChatColor.GRAY)
+                            .append(String.valueOf(claim.getWidth()))
+                            .color(net.md_5.bungee.api.ChatColor.YELLOW)
+                            .append("x")
+                            .color(net.md_5.bungee.api.ChatColor.GRAY)
+                            .append(String.valueOf(claim.getHeight()))
+                            .color(net.md_5.bungee.api.ChatColor.YELLOW)
+                            .create())))
+                    .create());
 
-            StringBuilder permissions = new StringBuilder();
-            permissions.append(ChatColor.GOLD).append('>');
+            // Consider accessor for Claim.playerIDToClaimPermissionMap, which is private now.
+            Map<String, ClaimPermission> trustList = new HashMap<>();
+            builders.forEach(v -> trustList.put(v, ClaimPermission.Build));
+            containers.forEach(v -> trustList.put(v, ClaimPermission.Inventory));
+            accessors.forEach(v -> trustList.put(v, ClaimPermission.Access));
+            managers.forEach(v -> trustList.put(v, ClaimPermission.Manage));
 
-            if (managers.size() > 0)
+            if (trustList.isEmpty())
             {
-                for (String manager : managers)
-                    permissions.append(this.trustEntryToPlayerName(manager)).append(' ');
+                GriefPrevention.sendMessage(player, TextMode.Warn, "There are no explicit permissions in this claim.");
+                return true;
             }
 
-            player.sendMessage(permissions.toString());
-            permissions = new StringBuilder();
-            permissions.append(ChatColor.YELLOW).append('>');
-
-            if (builders.size() > 0)
+            ComponentBuilder builder = new ComponentBuilder();
+            for (var entry : trustList.entrySet())
             {
-                for (String builder : builders)
-                    permissions.append(this.trustEntryToPlayerName(builder)).append(' ');
+                String formattedName = trustEntryToPlayerName(entry.getKey());
+
+                if (builder.getCursor() >= 0)
+                {
+                    builder.append(", ", ComponentBuilder.FormatRetention.NONE);
+                }
+
+                net.md_5.bungee.api.ChatColor textColor = switch (entry.getValue())
+                {
+                    case Build -> net.md_5.bungee.api.ChatColor.YELLOW;
+                    case Inventory -> net.md_5.bungee.api.ChatColor.GREEN;
+                    case Access -> net.md_5.bungee.api.ChatColor.BLUE;
+                    case Manage -> net.md_5.bungee.api.ChatColor.GOLD;
+                    default -> net.md_5.bungee.api.ChatColor.WHITE;
+                };
+
+                builder
+                    .append(formattedName)
+                    .color(textColor)
+                    .event(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, entry.getKey()))
+                    .event(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(new ComponentBuilder()
+                        .append("User Information:")
+                        .color(net.md_5.bungee.api.ChatColor.GREEN)
+                        .append("\n")
+                        .append("Name: ")
+                        .color(net.md_5.bungee.api.ChatColor.GRAY)
+                        .append(formattedName)
+                        .color(net.md_5.bungee.api.ChatColor.YELLOW)
+                        .append("\n")
+                        .append("ID: ")
+                        .color(net.md_5.bungee.api.ChatColor.GRAY)
+                        .append(entry.getKey())
+                        .color(net.md_5.bungee.api.ChatColor.YELLOW)
+                        .append("\n")
+                        .append("Permission: ")
+                        .color(net.md_5.bungee.api.ChatColor.GRAY)
+                        .append(entry.getValue().name())
+                        .color(textColor)
+                        .create())));
             }
 
-            player.sendMessage(permissions.toString());
-            permissions = new StringBuilder();
-            permissions.append(ChatColor.GREEN).append('>');
-
-            if (containers.size() > 0)
-            {
-                for (String container : containers)
-                    permissions.append(this.trustEntryToPlayerName(container)).append(' ');
-            }
-
-            player.sendMessage(permissions.toString());
-            permissions = new StringBuilder();
-            permissions.append(ChatColor.BLUE).append('>');
-
-            if (accessors.size() > 0)
-            {
-                for (String accessor : accessors)
-                    permissions.append(this.trustEntryToPlayerName(accessor)).append(' ');
-            }
-
-            player.sendMessage(permissions.toString());
-
-            player.sendMessage(
-                    ChatColor.GOLD + this.dataStore.getMessage(Messages.Manage) + " " +
-                            ChatColor.YELLOW + this.dataStore.getMessage(Messages.Build) + " " +
-                            ChatColor.GREEN + this.dataStore.getMessage(Messages.Containers) + " " +
-                            ChatColor.BLUE + this.dataStore.getMessage(Messages.Access));
+            player.spigot().sendMessage(builder.create());
 
             if (claim.getSubclaimRestrictions())
             {
