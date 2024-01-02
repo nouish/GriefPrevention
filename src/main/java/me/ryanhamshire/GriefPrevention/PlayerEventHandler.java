@@ -2213,7 +2213,7 @@ class PlayerEventHandler implements Listener
                 }
                 else
                 {
-                    allowedFillBlocks.add(Material.SHORT_GRASS);
+                    allowedFillBlocks.add(GriefPrevention.SHORT_GRASS);
                     allowedFillBlocks.add(Material.DIRT);
                     allowedFillBlocks.add(Material.STONE);
                     allowedFillBlocks.add(Material.SAND);
@@ -2277,7 +2277,7 @@ class PlayerEventHandler implements Listener
                             }
 
                             //only replace air, spilling water, snow, long grass
-                            if (block.getType() == Material.AIR || block.getType() == Material.SNOW || (block.getType() == Material.WATER && ((Levelled) block.getBlockData()).getLevel() != 0) || block.getType() == Material.SHORT_GRASS)
+                            if (block.getType() == Material.AIR || block.getType() == Material.SNOW || (block.getType() == Material.WATER && ((Levelled) block.getBlockData()).getLevel() != 0) || block.getType() == GriefPrevention.SHORT_GRASS)
                             {
                                 //if the top level, always use the default filler picked above
                                 if (y == maxHeight)
@@ -2689,7 +2689,7 @@ class PlayerEventHandler implements Listener
             Material type = result.getType();
             if (type != Material.AIR &&
                     (!passThroughWater || type != Material.WATER) &&
-                    type != Material.SHORT_GRASS &&
+                    type != GriefPrevention.SHORT_GRASS &&
                     type != Material.SNOW) return result;
         }
 
