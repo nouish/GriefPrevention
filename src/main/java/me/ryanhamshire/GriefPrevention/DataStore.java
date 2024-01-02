@@ -213,14 +213,11 @@ public abstract class DataStore
         File softMuteFile = new File(softMuteFilePath);
         if (softMuteFile.exists())
         {
-            BufferedReader inStream = null;
-            try
+            try (FileReader in = new FileReader(softMuteFile, StandardCharsets.UTF_8);
+                 BufferedReader reader = new BufferedReader(in))
             {
-                //open the file
-                inStream = new BufferedReader(new FileReader(softMuteFile.getAbsolutePath()));
-
                 //while there are lines left
-                String nextID = inStream.readLine();
+                String nextID = reader.readLine();
                 while (nextID != null)
                 {
                     //parse line into a UUID
@@ -242,7 +239,7 @@ public abstract class DataStore
                     }
 
                     //move to the next
-                    nextID = inStream.readLine();
+                    nextID = reader.readLine();
                 }
             }
             catch (Exception e)
@@ -250,12 +247,6 @@ public abstract class DataStore
                 GriefPrevention.AddLogEntry("Failed to read from the soft mute data file: " + e.toString());
                 e.printStackTrace();
             }
-
-            try
-            {
-                if (inStream != null) inStream.close();
-            }
-            catch (IOException exception) {}
         }
     }
 
