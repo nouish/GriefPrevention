@@ -4,6 +4,8 @@ import me.ryanhamshire.GriefPrevention.events.PreventPvPEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.NamespacedKey;
+import org.bukkit.damage.DamageSource;
+import org.bukkit.damage.DamageType;
 import org.bukkit.entity.AnimalTamer;
 import org.bukkit.entity.Animals;
 import org.bukkit.entity.Creature;
@@ -135,7 +137,14 @@ public class EntityDamageHandler implements Listener
         //handle it just like we would an entity damge by entity event, except don't send player messages to avoid double messages
         //in cases like attacking with a flame sword or flame arrow, which would ALSO trigger the direct damage event handler
 
-        EntityDamageByEntityEvent eventWrapper = new EntityDamageByEntityEvent(event.getCombuster(), event.getEntity(), EntityDamageEvent.DamageCause.FIRE_TICK, event.getDuration());
+        // Preferrably this should be handled without needing to create this event,
+        // because the constructors are not guaranteed not to change.
+        EntityDamageByEntityEvent eventWrapper = new EntityDamageByEntityEvent(
+                event.getCombuster(),
+                event.getEntity(),
+                EntityDamageEvent.DamageCause.FIRE_TICK,
+                DamageSource.builder(DamageType.ON_FIRE).withCausingEntity(event.getCombuster()).build(),
+                event.getDuration());
         this.handleEntityDamageEvent(eventWrapper, false);
         event.setCancelled(eventWrapper.isCancelled());
     }

@@ -41,6 +41,8 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Levelled;
 import org.bukkit.block.data.Waterlogged;
 import org.bukkit.command.Command;
+import org.bukkit.damage.DamageSource;
+import org.bukkit.damage.DamageType;
 import org.bukkit.entity.AbstractHorse;
 import org.bukkit.entity.Animals;
 import org.bukkit.entity.Creature;
@@ -1406,7 +1408,11 @@ class PlayerEventHandler implements Listener
         // Name tags may only be used on entities that the player is allowed to kill.
         if (itemInHand.getType() == Material.NAME_TAG)
         {
-            EntityDamageByEntityEvent damageEvent = new EntityDamageByEntityEvent(player, entity, EntityDamageEvent.DamageCause.CUSTOM, 0);
+            // Preferrably this should be handled without needing to create this event,
+            // because the constructors are not guaranteed not to change.
+            EntityDamageByEntityEvent damageEvent = new EntityDamageByEntityEvent(player, entity,
+                    EntityDamageEvent.DamageCause.CUSTOM,
+                    DamageSource.builder(DamageType.GENERIC).withCausingEntity(player).build(), 0);
             instance.entityDamageHandler.onEntityDamage(damageEvent);
             if (damageEvent.isCancelled())
             {
