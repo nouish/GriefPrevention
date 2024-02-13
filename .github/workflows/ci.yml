@@ -36,4 +36,6 @@ jobs:
         if: matrix.java == 17
         with:
           name: ${{ env.artifactName }}
-          path: target/*.jar
+          path: |
+            target/*.jar
+            !target/original-*.jar
