@@ -295,7 +295,7 @@ public class BlockEventHandler implements Listener
 
         //If block is a chest, don't allow a DoubleChest to form across a claim boundary
         denyConnectingDoubleChestsAcrossClaimBoundary(claim, block, player);
-        
+
         if (claim != null)
         {
             playerData.lastClaim = claim;
@@ -410,7 +410,7 @@ public class BlockEventHandler implements Listener
         else if (Tag.SAPLINGS.isTagged(block.getType()) && GriefPrevention.instance.config_blockSkyTrees && GriefPrevention.instance.claimsEnabledForWorld(player.getWorld()))
         {
             Block earthBlock = placeEvent.getBlockAgainst();
-            if (earthBlock.getType() != GriefPrevention.SHORT_GRASS)
+            if (earthBlock.getType() != Material.SHORT_GRASS)
             {
                 if (earthBlock.getRelative(BlockFace.DOWN).getType() == Material.AIR ||
                         earthBlock.getRelative(BlockFace.DOWN).getRelative(BlockFace.DOWN).getType() == Material.AIR)

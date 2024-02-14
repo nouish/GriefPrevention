@@ -83,20 +83,6 @@ import org.jetbrains.annotations.Nullable;
 
 public class GriefPrevention extends JavaPlugin
 {
-    // Material.GRASS renamed to Material.SHORT_GRASS in release 1.20.4.
-    public static final Material SHORT_GRASS = findShortGrassType();
-
-    private static Material findShortGrassType()
-    {
-        Material material = Material.matchMaterial("SHORT_GRASS");
-        if (material != null)
-            return material;
-        material = Material.matchMaterial("GRASS");
-        if (material != null)
-            return material;
-        throw new AssertionError("Unable to determine grass type [SHORT_GRASS, GRASS].");
-    }
-
     //for convenience, a reference to the instance of this plugin
     public static GriefPrevention instance;
 
@@ -745,7 +731,7 @@ public class GriefPrevention extends JavaPlugin
         this.config_siege_blocks = new HashSet<>();
         this.config_siege_blocks.add(Material.DIRT);
         this.config_siege_blocks.add(Material.GRASS_BLOCK);
-        this.config_siege_blocks.add(GriefPrevention.SHORT_GRASS);
+        this.config_siege_blocks.add(Material.SHORT_GRASS);
         this.config_siege_blocks.add(Material.FERN);
         this.config_siege_blocks.add(Material.DEAD_BUSH);
         this.config_siege_blocks.add(Material.COBBLESTONE);
