@@ -1406,18 +1406,27 @@ class PlayerEventHandler implements Listener
         // Name tags may only be used on entities that the player is allowed to kill.
         if (itemInHand.getType() == Material.NAME_TAG)
         {
-            // Preferrably this should be handled without needing to create this event,
-            // because the constructors are not guaranteed not to change.
-            EntityDamageByEntityEvent damageEvent = new EntityDamageByEntityEvent(player, entity,
-                    EntityDamageEvent.DamageCause.CUSTOM,
-                    DamageSource.builder(DamageType.GENERIC).withCausingEntity(player).build(), 0);
-            instance.entityDamageHandler.onEntityDamage(damageEvent);
-            if (damageEvent.isCancelled())
+            Claim cachedClaim = playerData.lastClaim;;
+            Claim claim = this.dataStore.getClaimAt(entity.getLocation(), false, cachedClaim);
+
+            // Require a claim to handle.
+            if (claim == null) return;
+
+            Supplier<String> override = () ->
             {
-                event.setCancelled(true);
-                // Don't print message - damage event handler should have handled it.
-                return;
-            }
+                String message = dataStore.getMessage(Messages.NoDamageClaimedEntity, claim.getOwnerName());
+                if (player.hasPermission("griefprevention.ignoreclaims"))
+                    message += "  " + dataStore.getMessage(Messages.IgnoreClaimsAdvertisement);
+                return message;
+            };
+
+            // Check for permission to access containers.
+            Supplier<String> noContainersReason = claim.checkPermission(player, ClaimPermission.Inventory, event, override);
+
+            // If player has permission, action is allowed.
+            if (noContainersReason == null) return;
+            event.setCancelled(true);
+            GriefPrevention.sendMessage(player, TextMode.Err, noContainersReason.get());
         }
     }
 
