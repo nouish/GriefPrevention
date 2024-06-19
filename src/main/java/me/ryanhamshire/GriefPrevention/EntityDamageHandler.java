@@ -61,26 +61,26 @@ public class EntityDamageHandler implements Listener
 
     private static final Set<PotionEffectType> GRIEF_EFFECTS = Set.of(
             // Damaging effects
-            PotionEffectType.HARM,
+            PotionEffectType.INSTANT_DAMAGE,
             PotionEffectType.POISON,
             PotionEffectType.WITHER,
             // Effects that could remove entities from normally-secure pens
-            PotionEffectType.JUMP,
+            PotionEffectType.JUMP_BOOST,
             PotionEffectType.LEVITATION
     );
     private static final Set<PotionEffectType> POSITIVE_EFFECTS = Set.of(
             PotionEffectType.ABSORPTION,
             PotionEffectType.CONDUIT_POWER,
-            PotionEffectType.DAMAGE_RESISTANCE,
+            PotionEffectType.RESISTANCE,
             PotionEffectType.DOLPHINS_GRACE,
-            PotionEffectType.FAST_DIGGING,
+            PotionEffectType.HASTE,
             PotionEffectType.FIRE_RESISTANCE,
-            PotionEffectType.HEAL,
+            PotionEffectType.INSTANT_HEALTH,
             PotionEffectType.HEALTH_BOOST,
             PotionEffectType.HERO_OF_THE_VILLAGE,
-            PotionEffectType.INCREASE_DAMAGE,
+            PotionEffectType.STRENGTH,
             PotionEffectType.INVISIBILITY,
-            PotionEffectType.JUMP,
+            PotionEffectType.JUMP_BOOST,
             PotionEffectType.LUCK,
             PotionEffectType.NIGHT_VISION,
             PotionEffectType.REGENERATION,
@@ -160,7 +160,7 @@ public class EntityDamageHandler implements Listener
         if (event.getEntity() instanceof Mule && !instance.config_claims_protectDonkeys) return;
         if (event.getEntity() instanceof Llama && !instance.config_claims_protectLlamas) return;
         //protected death loot can't be destroyed, only picked up or despawned due to expiration
-        if (event.getEntityType() == EntityType.DROPPED_ITEM)
+        if (event.getEntityType() == EntityType.ITEM)
         {
             if (event.getEntity().hasMetadata("GP_ITEMOWNER"))
             {
@@ -592,7 +592,7 @@ public class EntityDamageHandler implements Listener
                 && entityType != EntityType.GLOW_ITEM_FRAME
                 && entityType != EntityType.ARMOR_STAND
                 && entityType != EntityType.VILLAGER
-                && entityType != EntityType.ENDER_CRYSTAL)
+                && entityType != EntityType.END_CRYSTAL)
         {
             return false;
         }
@@ -669,7 +669,7 @@ public class EntityDamageHandler implements Listener
         if (attacker == null
                 && damageSourceType != EntityType.CREEPER
                 && damageSourceType != EntityType.WITHER
-                && damageSourceType != EntityType.ENDER_CRYSTAL
+                && damageSourceType != EntityType.END_CRYSTAL
                 && damageSourceType != EntityType.AREA_EFFECT_CLOUD
                 && damageSourceType != EntityType.WITCH
                 && !(damageSource instanceof Projectile)
@@ -705,7 +705,7 @@ public class EntityDamageHandler implements Listener
         playerData.lastClaim = claim;
 
         // Do not message players about fireworks to prevent spam due to multi-hits.
-        sendMessages &= damageSourceType != EntityType.FIREWORK;
+        sendMessages &= damageSourceType != EntityType.FIREWORK_ROCKET;
 
         Supplier<String> override = null;
         if (sendMessages)
@@ -886,7 +886,7 @@ public class EntityDamageHandler implements Listener
         }
 
         //if not a player and not an explosion, always allow
-        if (attacker == null && damageSourceType != EntityType.CREEPER && damageSourceType != EntityType.WITHER && damageSourceType != EntityType.PRIMED_TNT)
+        if (attacker == null && damageSourceType != EntityType.CREEPER && damageSourceType != EntityType.WITHER && damageSourceType != EntityType.TNT)
         {
             return;
         }
