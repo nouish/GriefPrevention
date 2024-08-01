@@ -21,11 +21,11 @@ package me.ryanhamshire.GriefPrevention;
 import com.google.common.io.Files;
 import com.griefprevention.visualization.BoundaryVisualization;
 import com.griefprevention.visualization.VisualizationType;
-import me.ryanhamshire.GriefPrevention.events.ClaimModifiedEvent;
-import me.ryanhamshire.GriefPrevention.events.ClaimResizeEvent;
 import me.ryanhamshire.GriefPrevention.events.ClaimCreatedEvent;
 import me.ryanhamshire.GriefPrevention.events.ClaimDeletedEvent;
 import me.ryanhamshire.GriefPrevention.events.ClaimExtendEvent;
+import me.ryanhamshire.GriefPrevention.events.ClaimModifiedEvent;
+import me.ryanhamshire.GriefPrevention.events.ClaimResizeEvent;
 import me.ryanhamshire.GriefPrevention.events.ClaimTransferEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -50,7 +50,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
@@ -271,10 +271,10 @@ public abstract class DataStore
                         "nigger\nniggers\nniger\nnigga\nnigers\nniggas\n" +
                                 "fag\nfags\nfaggot\nfaggots\nfeggit\nfeggits\nfaggit\nfaggits\n" +
                                 "cunt\ncunts\nwhore\nwhores\nslut\nsluts\n";
-                Files.append(defaultWords, bannedWordsFile, Charset.forName("UTF-8"));
+                Files.asCharSink(bannedWordsFile, StandardCharsets.UTF_8).write(defaultWords);
             }
 
-            return Files.readLines(bannedWordsFile, Charset.forName("UTF-8"));
+            return Files.readLines(bannedWordsFile, StandardCharsets.UTF_8);
         }
         catch (Exception e)
         {
