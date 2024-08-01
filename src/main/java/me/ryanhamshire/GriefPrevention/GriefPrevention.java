@@ -3636,25 +3636,7 @@ public class GriefPrevention extends JavaPlugin
             playerData.lastClaim = claim;
             Block block = location.getBlock();
 
-            ItemStack itemStack;
-            if (material.isItem())
-            {
-                itemStack = new ItemStack(material);
-            }
-            else
-            {
-                var blockType = material.asBlockType();
-                if (blockType != null && blockType.hasItemType())
-                {
-                    itemStack = blockType.getItemType().createItemStack();
-                }
-                else
-                {
-                    itemStack = new ItemStack(Material.DIRT);
-                }
-            }
-
-            Supplier<String> supplier = claim.checkPermission(player, ClaimPermission.Build, new BlockPlaceEvent(block, block.getState(), block, itemStack, player, true, EquipmentSlot.HAND));
+            Supplier<String> supplier = claim.checkPermission(player, ClaimPermission.Build, new BlockPlaceEvent(block, block.getState(), block, new ItemStack(material), player, true, EquipmentSlot.HAND));
 
             if (supplier == null) return null;
 

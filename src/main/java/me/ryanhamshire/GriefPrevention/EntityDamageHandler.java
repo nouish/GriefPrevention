@@ -41,7 +41,6 @@ import org.bukkit.event.vehicle.VehicleDamageEvent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.potion.PotionEffectTypeCategory;
 import org.bukkit.projectiles.ProjectileSource;
 import org.bukkit.util.Vector;
 import org.jetbrains.annotations.NotNull;
@@ -60,12 +59,33 @@ public class EntityDamageHandler implements Listener
 
     private static final Set<PotionEffectType> GRIEF_EFFECTS = Set.of(
             // Damaging effects
-            PotionEffectType.INSTANT_DAMAGE,
+            PotionEffectType.HARM,
             PotionEffectType.POISON,
             PotionEffectType.WITHER,
             // Effects that could remove entities from normally-secure pens
-            PotionEffectType.JUMP_BOOST,
+            PotionEffectType.JUMP,
             PotionEffectType.LEVITATION
+    );
+    private static final Set<PotionEffectType> POSITIVE_EFFECTS = Set.of(
+            PotionEffectType.ABSORPTION,
+            PotionEffectType.CONDUIT_POWER,
+            PotionEffectType.DAMAGE_RESISTANCE,
+            PotionEffectType.DOLPHINS_GRACE,
+            PotionEffectType.FAST_DIGGING,
+            PotionEffectType.FIRE_RESISTANCE,
+            PotionEffectType.HEAL,
+            PotionEffectType.HEALTH_BOOST,
+            PotionEffectType.HERO_OF_THE_VILLAGE,
+            PotionEffectType.INCREASE_DAMAGE,
+            PotionEffectType.INVISIBILITY,
+            PotionEffectType.JUMP,
+            PotionEffectType.LUCK,
+            PotionEffectType.NIGHT_VISION,
+            PotionEffectType.REGENERATION,
+            PotionEffectType.SATURATION,
+            PotionEffectType.SLOW_FALLING,
+            PotionEffectType.SPEED,
+            PotionEffectType.WATER_BREATHING
     );
     private static final Set<EntityType> TEMPTABLE_SEMI_HOSTILES = Set.of(
             EntityType.HOGLIN,
@@ -126,7 +146,7 @@ public class EntityDamageHandler implements Listener
         if (event.getEntity() instanceof Mule && !instance.config_claims_protectDonkeys) return;
         if (event.getEntity() instanceof Llama && !instance.config_claims_protectLlamas) return;
         //protected death loot can't be destroyed, only picked up or despawned due to expiration
-        if (event.getEntityType() == EntityType.ITEM)
+        if (event.getEntityType() == EntityType.DROPPED_ITEM)
         {
             if (event.getEntity().hasMetadata("GP_ITEMOWNER"))
             {
@@ -194,7 +214,7 @@ public class EntityDamageHandler implements Listener
         if (event.getEntity() instanceof Mule && !instance.config_claims_protectDonkeys) return;
         if (event.getEntity() instanceof Llama && !instance.config_claims_protectLlamas) return;
         //protected death loot can't be destroyed, only picked up or despawned due to expiration
-        if (event.getEntityType() == EntityType.ITEM)
+        if (event.getEntityType() == EntityType.DROPPED_ITEM)
         {
             if (event.getEntity().hasMetadata("GP_ITEMOWNER"))
             {
@@ -682,7 +702,7 @@ public class EntityDamageHandler implements Listener
                 && entityType != EntityType.GLOW_ITEM_FRAME
                 && entityType != EntityType.ARMOR_STAND
                 && entityType != EntityType.VILLAGER
-                && entityType != EntityType.END_CRYSTAL)
+                && entityType != EntityType.ENDER_CRYSTAL)
         {
             return false;
         }
@@ -740,7 +760,7 @@ public class EntityDamageHandler implements Listener
                 && entityType != EntityType.GLOW_ITEM_FRAME
                 && entityType != EntityType.ARMOR_STAND
                 && entityType != EntityType.VILLAGER
-                && entityType != EntityType.END_CRYSTAL)
+                && entityType != EntityType.ENDER_CRYSTAL)
         {
             return false;
         }
@@ -818,7 +838,7 @@ public class EntityDamageHandler implements Listener
         if (attacker == null
                 && damageSourceType != EntityType.CREEPER
                 && damageSourceType != EntityType.WITHER
-                && damageSourceType != EntityType.END_CRYSTAL
+                && damageSourceType != EntityType.ENDER_CRYSTAL
                 && damageSourceType != EntityType.AREA_EFFECT_CLOUD
                 && damageSourceType != EntityType.WITCH
                 && !(damageSource instanceof Projectile)
@@ -854,7 +874,7 @@ public class EntityDamageHandler implements Listener
         playerData.lastClaim = claim;
 
         // Do not message players about fireworks to prevent spam due to multi-hits.
-        sendMessages &= damageSourceType != EntityType.FIREWORK_ROCKET;
+        sendMessages &= damageSourceType != EntityType.FIREWORK;
 
         Supplier<String> override = null;
         if (sendMessages)
@@ -900,7 +920,7 @@ public class EntityDamageHandler implements Listener
         if (attacker == null
                 && damageSourceType != EntityType.CREEPER
                 && damageSourceType != EntityType.WITHER
-                && damageSourceType != EntityType.END_CRYSTAL
+                && damageSourceType != EntityType.ENDER_CRYSTAL
                 && damageSourceType != EntityType.AREA_EFFECT_CLOUD
                 && damageSourceType != EntityType.WITCH
                 && !(damageSource instanceof Projectile)
@@ -936,7 +956,7 @@ public class EntityDamageHandler implements Listener
         playerData.lastClaim = claim;
 
         // Do not message players about fireworks to prevent spam due to multi-hits.
-        sendMessages &= damageSourceType != EntityType.FIREWORK_ROCKET;
+        sendMessages &= damageSourceType != EntityType.FIREWORK;
 
         Supplier<String> override = null;
         if (sendMessages)
@@ -1117,7 +1137,7 @@ public class EntityDamageHandler implements Listener
         }
 
         //if not a player and not an explosion, always allow
-        if (attacker == null && damageSourceType != EntityType.CREEPER && damageSourceType != EntityType.WITHER && damageSourceType != EntityType.TNT)
+        if (attacker == null && damageSourceType != EntityType.CREEPER && damageSourceType != EntityType.WITHER && damageSourceType != EntityType.PRIMED_TNT)
         {
             return;
         }
@@ -1236,7 +1256,7 @@ public class EntityDamageHandler implements Listener
             if (thrower == null) return;
 
             //otherwise, no restrictions for positive effects
-            if (effectType.getCategory() == PotionEffectTypeCategory.BENEFICIAL) continue;
+            if (POSITIVE_EFFECTS.contains(effectType)) continue;
 
             for (LivingEntity affected : event.getAffectedEntities())
             {
