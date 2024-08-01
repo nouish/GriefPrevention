@@ -213,12 +213,9 @@ public abstract class DataStore
         File softMuteFile = new File(softMuteFilePath);
         if (softMuteFile.exists())
         {
-            BufferedReader inStream = null;
-            try
+            try (FileReader reader = new FileReader(softMuteFile, StandardCharsets.UTF_8);
+                 BufferedReader inStream = new BufferedReader(reader))
             {
-                //open the file
-                inStream = new BufferedReader(new FileReader(softMuteFile.getAbsolutePath()));
-
                 //while there are lines left
                 String nextID = inStream.readLine();
                 while (nextID != null)
@@ -250,12 +247,6 @@ public abstract class DataStore
                 GriefPrevention.AddLogEntry("Failed to read from the soft mute data file: " + e.toString());
                 e.printStackTrace();
             }
-
-            try
-            {
-                if (inStream != null) inStream.close();
-            }
-            catch (IOException exception) {}
         }
     }
 
@@ -308,15 +299,10 @@ public abstract class DataStore
 
     private void saveSoftMutes()
     {
-        BufferedWriter outStream = null;
-
-        try
+        //open the file and write the new value
+        try (FileWriter writer = new FileWriter(softMuteFilePath, StandardCharsets.UTF_8);
+             BufferedWriter outStream = new BufferedWriter(writer))
         {
-            //open the file and write the new value
-            File softMuteFile = new File(softMuteFilePath);
-            softMuteFile.createNewFile();
-            outStream = new BufferedWriter(new FileWriter(softMuteFile));
-
             for (Map.Entry<UUID, Boolean> entry : softMuteMap.entrySet())
             {
                 if (entry.getValue().booleanValue())
@@ -325,7 +311,6 @@ public abstract class DataStore
                     outStream.newLine();
                 }
             }
-
         }
 
         //if any problem, log it
@@ -334,13 +319,6 @@ public abstract class DataStore
             GriefPrevention.AddLogEntry("Unexpected exception saving soft mute data: " + e.getMessage());
             e.printStackTrace();
         }
-
-        //close the file
-        try
-        {
-            if (outStream != null) outStream.close();
-        }
-        catch (IOException exception) {}
     }
 
     //removes cached player data from memory
@@ -1061,8 +1039,8 @@ public abstract class DataStore
                 }
 
                 //write data to file
-                File playerDataFile = new File(playerDataFolderPath + File.separator + playerID + ".ignore");
-                Files.write(fileContent.toString().trim().getBytes("UTF-8"), playerDataFile);
+                File playerDataFile = new File(playerDataFolderPath, playerID + ".ignore");
+                Files.write(fileContent.toString().trim().getBytes(StandardCharsets.UTF_8), playerDataFile);
             }
 
             //if any problem, log it
@@ -1542,7 +1520,7 @@ public abstract class DataStore
             }
 
             //if increased to a sufficiently large size and no subdivisions yet, send subdivision instructions
-            if (oldClaim.getArea() < 1000 && result.claim.getArea() >= 1000 && result.claim.children.size() == 0 && !player.hasPermission("griefprevention.adminclaims"))
+            if (oldClaim.getArea() < 1000 && result.claim.getArea() >= 1000 && result.claim.children.isEmpty() && !player.hasPermission("griefprevention.adminclaims"))
             {
                 GriefPrevention.sendMessage(player, TextMode.Info, Messages.BecomeMayor, 200L);
                 GriefPrevention.sendMessage(player, TextMode.Instr, Messages.SubdivisionVideo2, 201L, DataStore.SUBDIVISION_VIDEO_URL);

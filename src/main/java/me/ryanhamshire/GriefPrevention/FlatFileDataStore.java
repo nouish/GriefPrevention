@@ -96,10 +96,9 @@ public class FlatFileDataStore extends DataStore
             String groupName = file.getName().substring(1);
             if (groupName == null || groupName.isEmpty()) continue;  //defensive coding, avoid unlikely cases
 
-            BufferedReader inStream = null;
-            try
+            try (FileReader reader = new FileReader(file, StandardCharsets.UTF_8);
+                 BufferedReader inStream = new BufferedReader(reader))
             {
-                inStream = new BufferedReader(new FileReader(file.getAbsolutePath()));
                 String line = inStream.readLine();
 
                 int groupBonusBlocks = Integer.parseInt(line);
@@ -112,36 +111,22 @@ public class FlatFileDataStore extends DataStore
                 e.printStackTrace(new PrintWriter(errors));
                 GriefPrevention.AddLogEntry(errors.toString(), CustomLogEntryTypes.Exception);
             }
-
-            try
-            {
-                if (inStream != null) inStream.close();
-            }
-            catch (IOException exception) {}
         }
 
         //load next claim number from file
         File nextClaimIdFile = new File(nextClaimIdFilePath);
         if (nextClaimIdFile.exists())
         {
-            BufferedReader inStream = null;
-            try
+            try (FileReader reader = new FileReader(nextClaimIdFile, StandardCharsets.UTF_8);
+                 BufferedReader inStream = new BufferedReader(reader))
             {
-                inStream = new BufferedReader(new FileReader(nextClaimIdFile.getAbsolutePath()));
-
                 //read the id
                 String line = inStream.readLine();
 
                 //try to parse into a long value
                 this.nextClaimID = Long.parseLong(line);
             }
-            catch (Exception e) { }
-
-            try
-            {
-                if (inStream != null) inStream.close();
-            }
-            catch (IOException exception) {}
+            catch (Exception e) {}
         }
 
         //if converting up from schema version 0, rename player data files using UUIDs instead of player names
@@ -245,13 +230,11 @@ public class FlatFileDataStore extends DataStore
                     files[i] = newFile;
                 }
 
-                BufferedReader inStream = null;
                 String lesserCornerString = "";
-                try
+                try (FileReader reader = new FileReader(files[i], StandardCharsets.UTF_8);
+                     BufferedReader inStream = new BufferedReader(reader))
                 {
                     Claim topLevelClaim = null;
-
-                    inStream = new BufferedReader(new FileReader(files[i].getAbsolutePath()));
                     String line = inStream.readLine();
 
                     while (line != null)
@@ -361,8 +344,6 @@ public class FlatFileDataStore extends DataStore
                         //move up to the first line in the next subdivision
                         line = inStream.readLine();
                     }
-
-                    inStream.close();
                 }
 
                 //if there's any problem with the file's content, log an error message and skip it
@@ -371,8 +352,6 @@ public class FlatFileDataStore extends DataStore
                     if (e.getMessage() != null && e.getMessage().contains("World not found"))
                     {
                         GriefPrevention.AddLogEntry("Failed to load a claim " + files[i].getName() + " because its world isn't loaded (yet?).  Please delete the claim file or contact the GriefPrevention developer with information about which plugin(s) you're using to load or create worlds.  " + lesserCornerString);
-                        inStream.close();
-
                     }
                     else
                     {
@@ -382,12 +361,6 @@ public class FlatFileDataStore extends DataStore
                         GriefPrevention.AddLogEntry(files[i].getName() + " " + errors.toString(), CustomLogEntryTypes.Exception);
                     }
                 }
-
-                try
-                {
-                    if (inStream != null) inStream.close();
-                }
-                catch (IOException exception) {}
             }
         }
     }
@@ -423,7 +396,7 @@ public class FlatFileDataStore extends DataStore
                 {
                     claimID = this.nextClaimID;
                     this.incrementNextClaimID();
-                    File newFile = new File(claimDataFolderPath + File.separator + String.valueOf(this.nextClaimID) + ".yml");
+                    File newFile = new File(claimDataFolderPath, String.valueOf(this.nextClaimID) + ".yml");
                     files[i].renameTo(newFile);
                     files[i] = newFile;
                 }
@@ -432,7 +405,7 @@ public class FlatFileDataStore extends DataStore
                 {
                     ArrayList<Long> out_parentID = new ArrayList<>();  //hacky output parameter
                     Claim claim = this.loadClaim(files[i], out_parentID, claimID);
-                    if (out_parentID.size() == 0 || out_parentID.get(0) == -1)
+                    if (out_parentID.isEmpty() || out_parentID.get(0) == -1)
                     {
                         this.addClaim(claim, false);
                     }
@@ -570,15 +543,13 @@ public class FlatFileDataStore extends DataStore
     synchronized void writeClaimToStorage(Claim claim)
     {
         String claimID = String.valueOf(claim.id);
-
         String yaml = this.getYamlForClaim(claim);
 
         try
         {
             //open the claim's file
-            File claimFile = new File(claimDataFolderPath + File.separator + claimID + ".yml");
-            claimFile.createNewFile();
-            Files.write(yaml.getBytes("UTF-8"), claimFile);
+            File claimFile = new File(claimDataFolderPath, claimID + ".yml");
+            Files.write(yaml.getBytes(StandardCharsets.UTF_8), claimFile);
         }
 
         //if any problem, log it
@@ -597,7 +568,7 @@ public class FlatFileDataStore extends DataStore
         String claimID = String.valueOf(claim.id);
 
         //remove from disk
-        File claimFile = new File(claimDataFolderPath + File.separator + claimID + ".yml");
+        File claimFile = new File(claimDataFolderPath, claimID + ".yml");
         if (claimFile.exists() && !claimFile.delete())
         {
             GriefPrevention.AddLogEntry("Error: Unable to delete claim file \"" + claimFile.getAbsolutePath() + "\".");
@@ -607,7 +578,7 @@ public class FlatFileDataStore extends DataStore
     @Override
     synchronized PlayerData getPlayerDataFromStorage(UUID playerID)
     {
-        File playerFile = new File(playerDataFolderPath + File.separator + playerID.toString());
+        File playerFile = new File(playerDataFolderPath, playerID.toString());
 
         PlayerData playerData = new PlayerData();
         playerData.playerID = playerID;
@@ -718,8 +689,8 @@ public class FlatFileDataStore extends DataStore
             fileContent.append("\n");
 
             //write data to file
-            File playerDataFile = new File(playerDataFolderPath + File.separator + playerID.toString());
-            Files.write(fileContent.toString().getBytes("UTF-8"), playerDataFile);
+            File playerDataFile = new File(playerDataFolderPath, playerID.toString());
+            Files.write(fileContent.toString().getBytes(StandardCharsets.UTF_8), playerDataFile);
         }
 
         //if any problem, log it
@@ -736,15 +707,10 @@ public class FlatFileDataStore extends DataStore
         //increment in memory
         this.nextClaimID++;
 
-        BufferedWriter outStream = null;
-
-        try
+        //open the file and write the new value
+        try (FileWriter writer = new FileWriter(nextClaimIdFilePath, StandardCharsets.UTF_8);
+             BufferedWriter outStream = new BufferedWriter(writer))
         {
-            //open the file and write the new value
-            File nextClaimIdFile = new File(nextClaimIdFilePath);
-            nextClaimIdFile.createNewFile();
-            outStream = new BufferedWriter(new FileWriter(nextClaimIdFile));
-
             outStream.write(String.valueOf(this.nextClaimID));
         }
 
@@ -754,13 +720,6 @@ public class FlatFileDataStore extends DataStore
             GriefPrevention.AddLogEntry("Unexpected exception saving next claim ID: " + e.getMessage());
             e.printStackTrace();
         }
-
-        //close the file
-        try
-        {
-            if (outStream != null) outStream.close();
-        }
-        catch (IOException exception) {}
     }
 
     //grants a group (players with a specific permission) bonus claim blocks as long as they're still members of the group
@@ -768,14 +727,10 @@ public class FlatFileDataStore extends DataStore
     synchronized void saveGroupBonusBlocks(String groupName, int currentValue)
     {
         //write changes to file to ensure they don't get lost
-        BufferedWriter outStream = null;
-        try
+        File groupDataFile = new File(playerDataFolderPath, "$" + groupName);
+        try (FileWriter writer = new FileWriter(groupDataFile, StandardCharsets.UTF_8);
+             BufferedWriter outStream = new BufferedWriter(writer))
         {
-            //open the group's file
-            File groupDataFile = new File(playerDataFolderPath + File.separator + "$" + groupName);
-            groupDataFile.createNewFile();
-            outStream = new BufferedWriter(new FileWriter(groupDataFile));
-
             //first line is number of bonus blocks
             outStream.write(String.valueOf(currentValue));
             outStream.newLine();
@@ -786,16 +741,6 @@ public class FlatFileDataStore extends DataStore
         {
             GriefPrevention.AddLogEntry("Unexpected exception saving data for group \"" + groupName + "\": " + e.getMessage());
         }
-
-        try
-        {
-            //close the file
-            if (outStream != null)
-            {
-                outStream.close();
-            }
-        }
-        catch (IOException exception) {}
     }
 
     synchronized void migrateData(DatabaseDataStore databaseStore)
@@ -878,12 +823,10 @@ public class FlatFileDataStore extends DataStore
         File schemaVersionFile = new File(schemaVersionFilePath);
         if (schemaVersionFile.exists())
         {
-            BufferedReader inStream = null;
             int schemaVersion = 0;
-            try
+            try (FileReader reader = new FileReader(schemaVersionFile, StandardCharsets.UTF_8);
+                 BufferedReader inStream = new BufferedReader(reader))
             {
-                inStream = new BufferedReader(new FileReader(schemaVersionFile.getAbsolutePath()));
-
                 //read the version number
                 String line = inStream.readLine();
 
@@ -891,12 +834,6 @@ public class FlatFileDataStore extends DataStore
                 schemaVersion = Integer.parseInt(line);
             }
             catch (Exception e) { }
-
-            try
-            {
-                if (inStream != null) inStream.close();
-            }
-            catch (IOException exception) {}
 
             return schemaVersion;
         }
@@ -910,15 +847,10 @@ public class FlatFileDataStore extends DataStore
     @Override
     void updateSchemaVersionInStorage(int versionToSet)
     {
-        BufferedWriter outStream = null;
-
-        try
+        try (FileWriter writer = new FileWriter(schemaVersionFilePath, StandardCharsets.UTF_8);
+             BufferedWriter outStream = new BufferedWriter(writer))
         {
             //open the file and write the new value
-            File schemaVersionFile = new File(schemaVersionFilePath);
-            schemaVersionFile.createNewFile();
-            outStream = new BufferedWriter(new FileWriter(schemaVersionFile));
-
             outStream.write(String.valueOf(versionToSet));
         }
 
@@ -927,13 +859,5 @@ public class FlatFileDataStore extends DataStore
         {
             GriefPrevention.AddLogEntry("Unexpected exception saving schema version: " + e.getMessage());
         }
-
-        //close the file
-        try
-        {
-            if (outStream != null) outStream.close();
-        }
-        catch (IOException exception) {}
-
     }
 }

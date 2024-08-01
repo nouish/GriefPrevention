@@ -333,7 +333,7 @@ public class BlockEventHandler implements Listener
             int radius = GriefPrevention.instance.config_claims_automaticClaimsForNewPlayersRadius;
 
             //if the player doesn't have any claims yet, automatically create a claim centered at the chest
-            if (playerData.getClaims().size() == 0 && player.getGameMode() == GameMode.SURVIVAL)
+            if (playerData.getClaims().isEmpty() && player.getGameMode() == GameMode.SURVIVAL)
             {
                 //radius == 0 means protect ONLY the chest
                 if (GriefPrevention.instance.config_claims_automaticClaimsForNewPlayersRadius == 0)
@@ -436,7 +436,7 @@ public class BlockEventHandler implements Listener
         {
             if (!playerData.warnedAboutBuildingOutsideClaims && !player.hasPermission("griefprevention.adminclaims")
                     && player.hasPermission("griefprevention.createclaims") && ((playerData.lastClaim == null
-                    && playerData.getClaims().size() == 0) || (playerData.lastClaim != null
+                    && playerData.getClaims().isEmpty()) || (playerData.lastClaim != null
                     && playerData.lastClaim.isNear(player.getLocation(), 15))))
             {
                 Long now = null;
