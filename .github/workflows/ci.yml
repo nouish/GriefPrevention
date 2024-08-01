@@ -2,23 +2,40 @@ name: CI
 
 on:
   push:
+    branches-ignore:
+      - dependabot/**
   pull_request:
 
 jobs:
   test:
     name: "Test on JDK ${{ matrix.java }}"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
-        java: [ 21 ]
+        java: [ 21, 22 ]
+
     steps:
       - name: "Checkout"
         uses: actions/checkout@v4
+
       - name: "Set up JDK ${{ matrix.java }}"
         uses: actions/setup-java@v4
         with:
           java-version: ${{ matrix.java }}
           distribution: temurin
           cache: maven
-      - name: "Test"
-        run: mvn --batch-mode verify
+
+      - name: "Build with Maven"
+        run: |
+          mvn --version
+          mvn --batch-mode package
+          echo "artifactName=$(mvn help:evaluate -Dexpression=project.build.finalName -q -DforceStdout)" >> $GITHUB_ENV
+
+      - name: "Upload Artifacts"
+        uses: actions/upload-artifact@v4
+        if: matrix.java == 21
+        with:
+          name: ${{ env.artifactName }}
+          path: |
+            target/*.jar
+            !target/original-*.jar

@@ -18,6 +18,29 @@
 
 package me.ryanhamshire.GriefPrevention;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.UUID;
+import java.util.Vector;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.griefprevention.visualization.BoundaryVisualization;
 import com.griefprevention.visualization.VisualizationType;
 import me.ryanhamshire.GriefPrevention.DataStore.NoTransferException;
@@ -25,6 +48,10 @@ import me.ryanhamshire.GriefPrevention.events.PreventBlockBreakEvent;
 import me.ryanhamshire.GriefPrevention.events.SaveTrappedPlayerEvent;
 import me.ryanhamshire.GriefPrevention.events.TrustChangedEvent;
 import me.ryanhamshire.GriefPrevention.metrics.MetricsHandler;
+import net.md_5.bungee.api.chat.ClickEvent;
+import net.md_5.bungee.api.chat.ComponentBuilder;
+import net.md_5.bungee.api.chat.HoverEvent;
+import net.md_5.bungee.api.chat.hover.content.Text;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.BanList;
 import org.bukkit.BanList.Type;
@@ -56,25 +83,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.UUID;
-import java.util.Vector;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
-import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public class GriefPrevention extends JavaPlugin
 {
@@ -324,10 +332,11 @@ public class GriefPrevention extends JavaPlugin
             {
                 if (!FlatFileDataStore.hasData())
                 {
-                    File claimdata = new File("plugins" + File.separator + "GriefPreventionData" + File.separator + "ClaimData");
+                    File dataFolder = new File("plugins", "GriefPreventionData");
+                    File claimdata = new File(dataFolder, "ClaimData");
                     oldclaimdata.renameTo(claimdata);
                     File oldplayerdata = new File(getDataFolder(), "PlayerData");
-                    File playerdata = new File("plugins" + File.separator + "GriefPreventionData" + File.separator + "PlayerData");
+                    File playerdata = new File(dataFolder, "PlayerData");
                     oldplayerdata.renameTo(playerdata);
                 }
             }
@@ -527,7 +536,7 @@ public class GriefPrevention extends JavaPlugin
             }
 
             //if the setting WOULD be disabled but this is a server upgrading from the old config format,
-            //then default to survival mode for safety's sake (to protect any admin claims which may 
+            //then default to survival mode for safety's sake (to protect any admin claims which may
             //have been created there)
             if (this.config_claims_worldModes.get(world) == ClaimsMode.Disabled &&
                     deprecated_claimsEnabledWorldNames.size() > 0)
@@ -1507,54 +1516,91 @@ public class GriefPrevention extends JavaPlugin
             ArrayList<String> managers = new ArrayList<>();
             claim.getPermissions(builders, containers, accessors, managers);
 
-            GriefPrevention.sendMessage(player, TextMode.Info, Messages.TrustListHeader, claim.getOwnerName());
+            player.spigot().sendMessage(new ComponentBuilder()
+                    .append("Explicit permissions here:")
+                    .color(net.md_5.bungee.api.ChatColor.YELLOW)
+                    .event(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(new ComponentBuilder()
+                            .append("Claim Information:").color(net.md_5.bungee.api.ChatColor.GREEN)
+                            .append("\n")
+                            .append("ID: ")
+                            .color(net.md_5.bungee.api.ChatColor.GRAY)
+                            .append(String.valueOf(claim.id))
+                            .color(net.md_5.bungee.api.ChatColor.YELLOW)
+                            .append("\n")
+                            .append("Owner: ")
+                            .color(net.md_5.bungee.api.ChatColor.GRAY)
+                            .append(trustEntryToPlayerName(claim.ownerID == null ? "public" : claim.ownerID.toString()))
+                            .color(net.md_5.bungee.api.ChatColor.YELLOW)
+                            .append("\n")
+                            .append("Size: ")
+                            .color(net.md_5.bungee.api.ChatColor.GRAY)
+                            .append(String.valueOf(claim.getWidth()))
+                            .color(net.md_5.bungee.api.ChatColor.YELLOW)
+                            .append("x")
+                            .color(net.md_5.bungee.api.ChatColor.GRAY)
+                            .append(String.valueOf(claim.getHeight()))
+                            .color(net.md_5.bungee.api.ChatColor.YELLOW)
+                            .create())))
+                    .create());
 
-            StringBuilder permissions = new StringBuilder();
-            permissions.append(ChatColor.GOLD).append('>');
+            // Consider accessor for Claim.playerIDToClaimPermissionMap, which is private now.
+            Map<String, ClaimPermission> trustList = new HashMap<>();
+            builders.forEach(v -> trustList.put(v, ClaimPermission.Build));
+            containers.forEach(v -> trustList.put(v, ClaimPermission.Inventory));
+            accessors.forEach(v -> trustList.put(v, ClaimPermission.Access));
+            managers.forEach(v -> trustList.put(v, ClaimPermission.Manage));
 
-            if (managers.size() > 0)
+            if (trustList.isEmpty())
             {
-                for (String manager : managers)
-                    permissions.append(this.trustEntryToPlayerName(manager)).append(' ');
+                GriefPrevention.sendMessage(player, TextMode.Warn, "There are no explicit permissions in this claim.");
+                return true;
             }
 
-            player.sendMessage(permissions.toString());
-            permissions = new StringBuilder();
-            permissions.append(ChatColor.YELLOW).append('>');
-
-            if (builders.size() > 0)
+            ComponentBuilder builder = new ComponentBuilder();
+            for (var entry : trustList.entrySet())
             {
-                for (String builder : builders)
-                    permissions.append(this.trustEntryToPlayerName(builder)).append(' ');
+                String formattedName = trustEntryToPlayerName(entry.getKey());
+
+                if (builder.getCursor() >= 0)
+                {
+                    builder.append(", ", ComponentBuilder.FormatRetention.NONE);
+                }
+
+                net.md_5.bungee.api.ChatColor textColor = switch (entry.getValue())
+                {
+                    case Build -> net.md_5.bungee.api.ChatColor.YELLOW;
+                    case Inventory -> net.md_5.bungee.api.ChatColor.GREEN;
+                    case Access -> net.md_5.bungee.api.ChatColor.BLUE;
+                    case Manage -> net.md_5.bungee.api.ChatColor.GOLD;
+                    default -> net.md_5.bungee.api.ChatColor.WHITE;
+                };
+
+                builder
+                    .append(formattedName)
+                    .color(textColor)
+                    .event(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, entry.getKey()))
+                    .event(new HoverEvent(HoverEvent.Action.SHOW_TEXT, new Text(new ComponentBuilder()
+                        .append("User Information:")
+                        .color(net.md_5.bungee.api.ChatColor.GREEN)
+                        .append("\n")
+                        .append("Name: ")
+                        .color(net.md_5.bungee.api.ChatColor.GRAY)
+                        .append(formattedName)
+                        .color(net.md_5.bungee.api.ChatColor.YELLOW)
+                        .append("\n")
+                        .append("ID: ")
+                        .color(net.md_5.bungee.api.ChatColor.GRAY)
+                        .append(entry.getKey())
+                        .color(net.md_5.bungee.api.ChatColor.YELLOW)
+                        .append("\n")
+                        .append("Permission: ")
+                        .color(net.md_5.bungee.api.ChatColor.GRAY)
+                        .append(entry.getValue().name())
+                        .color(textColor)
+                        .create())));
             }
 
-            player.sendMessage(permissions.toString());
-            permissions = new StringBuilder();
-            permissions.append(ChatColor.GREEN).append('>');
-
-            if (containers.size() > 0)
-            {
-                for (String container : containers)
-                    permissions.append(this.trustEntryToPlayerName(container)).append(' ');
-            }
-
-            player.sendMessage(permissions.toString());
-            permissions = new StringBuilder();
-            permissions.append(ChatColor.BLUE).append('>');
-
-            if (accessors.size() > 0)
-            {
-                for (String accessor : accessors)
-                    permissions.append(this.trustEntryToPlayerName(accessor)).append(' ');
-            }
-
-            player.sendMessage(permissions.toString());
-
-            player.sendMessage(
-                    ChatColor.GOLD + this.dataStore.getMessage(Messages.Manage) + " " +
-                            ChatColor.YELLOW + this.dataStore.getMessage(Messages.Build) + " " +
-                            ChatColor.GREEN + this.dataStore.getMessage(Messages.Containers) + " " +
-                            ChatColor.BLUE + this.dataStore.getMessage(Messages.Access));
+            player.spigot().sendMessage(builder.create());
 
             if (claim.getSubclaimRestrictions())
             {
@@ -3222,28 +3268,77 @@ public class GriefPrevention extends JavaPlugin
         return this.getServer().getOfflinePlayer(bestMatchID);
     }
 
+    private static final Cache<UUID, String> PLAYER_NAME_CACHE = CacheBuilder.newBuilder().expireAfterAccess(5, TimeUnit.MINUTES).build();
     //helper method to resolve a player name from the player's UUID
     static @NotNull String lookupPlayerName(@Nullable UUID playerID)
     {
         //parameter validation
-        if (playerID == null) return "someone";
+        if (playerID == null) return getDefaultName(null);
 
         //check the cache
+        String cached = PLAYER_NAME_CACHE.getIfPresent(playerID);
+        if (cached != null) return cached;
+
+        // If name is not cached, fetch player.
         OfflinePlayer player = GriefPrevention.instance.getServer().getOfflinePlayer(playerID);
         return lookupPlayerName(player);
     }
 
     static @NotNull String lookupPlayerName(@NotNull AnimalTamer tamer)
     {
-        // If the tamer is not a player or has played, prefer their name if it exists.
-        if (!(tamer instanceof OfflinePlayer player) || player.hasPlayedBefore() || player.isOnline())
+        // If the tamer is not a player, fetch their name directly.
+        if (!(tamer instanceof OfflinePlayer player))
         {
             String name = tamer.getName();
             if (name != null) return name;
+            // Fall back to tamer's UUID.
+            return getDefaultName(tamer.getUniqueId());
         }
 
-        // Fall back to tamer's UUID.
-        return "someone(" + tamer.getUniqueId() + ")";
+        // If the player is online, their name is available immediately.
+        if (player instanceof Player online)
+        {
+            String name = online.getName();
+            PLAYER_NAME_CACHE.put(player.getUniqueId(), name);
+            return name;
+        }
+
+        // Use cached name if available.
+        String name = PLAYER_NAME_CACHE.getIfPresent(player.getUniqueId());
+
+        if (name == null)
+        {
+            // If they're an existing player, they likely have a name. Load from disk.
+            if (player.hasPlayedBefore())
+            {
+                name = player.getName();
+            }
+
+            // If no name is available, fall through to default.
+            if (name == null)
+            {
+                name = getDefaultName(player.getUniqueId());
+            }
+
+            // Store name in cache.
+            PLAYER_NAME_CACHE.put(player.getUniqueId(), name);
+        }
+
+        return name;
+    }
+
+    private static String getDefaultName(@Nullable UUID playerId)
+    {
+        String someone = instance.dataStore.getMessage(Messages.UnknownPlayerName);
+
+        if (someone == null || someone.isBlank())
+        {
+            someone = "someone";
+        }
+
+        if (playerId == null) return someone;
+
+        return someone + " (" + playerId + ")";
     }
 
     //cache for player name lookups, to save searches of all offline players
@@ -3760,62 +3855,6 @@ public class GriefPrevention extends JavaPlugin
                 claim.isAdminClaim() && claim.parent != null && GriefPrevention.instance.config_pvp_noCombatInAdminSubdivisions ||
                 !claim.isAdminClaim() && GriefPrevention.instance.config_pvp_noCombatInPlayerLandClaims;
     }
-
-    /*
-    protected boolean isPlayerTrappedInPortal(Block block)
-	{
-		Material playerBlock = block.getType();
-		if (playerBlock == Material.PORTAL)
-			return true;
-		//Most blocks you can "stand" inside but cannot pass through (isSolid) usually can be seen through (!isOccluding)
-		//This can cause players to technically be considered not in a portal block, yet in reality is still stuck in the portal animation.
-		if ((!playerBlock.isSolid() || playerBlock.isOccluding())) //If it is _not_ such a block,
-		{
-			//Check the block above
-			playerBlock = block.getRelative(BlockFace.UP).getType();
-			if ((!playerBlock.isSolid() || playerBlock.isOccluding()))
-				return false; //player is not stuck
-		}
-		//Check if this block is also adjacent to a portal
-		return block.getRelative(BlockFace.EAST).getType() == Material.PORTAL
-				|| block.getRelative(BlockFace.WEST).getType() == Material.PORTAL
-				|| block.getRelative(BlockFace.NORTH).getType() == Material.PORTAL
-				|| block.getRelative(BlockFace.SOUTH).getType() == Material.PORTAL;
-	}
-
-	public void rescuePlayerTrappedInPortal(final Player player)
-	{
-		final Location oldLocation = player.getLocation();
-		if (!isPlayerTrappedInPortal(oldLocation.getBlock()))
-		{
-			//Note that he 'escaped' the portal frame
-			instance.portalReturnMap.remove(player.getUniqueId());
-			instance.portalReturnTaskMap.remove(player.getUniqueId());
-			return;
-		}
-
-		Location rescueLocation = portalReturnMap.get(player.getUniqueId());
-
-		if (rescueLocation == null)
-			return;
-
-		//Temporarily store the old location, in case the player wishes to undo the rescue
-		dataStore.getPlayerData(player.getUniqueId()).portalTrappedLocation = oldLocation;
-
-		player.teleport(rescueLocation);
-		sendMessage(player, TextMode.Info, Messages.RescuedFromPortalTrap);
-		portalReturnMap.remove(player.getUniqueId());
-
-		new BukkitRunnable()
-		{
-			public void run()
-			{
-				if (oldLocation == dataStore.getPlayerData(player.getUniqueId()).portalTrappedLocation)
-					dataStore.getPlayerData(player.getUniqueId()).portalTrappedLocation = null;
-			}
-		}.runTaskLater(this, 600L);
-	}
-	*/
 
     //Track scheduled "rescues" so we can cancel them if the player happens to teleport elsewhere so we can cancel it.
     ConcurrentHashMap<UUID, BukkitTask> portalReturnTaskMap = new ConcurrentHashMap<>();

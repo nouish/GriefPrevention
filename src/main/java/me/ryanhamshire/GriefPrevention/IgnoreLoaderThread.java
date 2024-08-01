@@ -4,6 +4,7 @@ import com.google.common.io.Files;
 
 import java.io.File;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,7 +25,7 @@ class IgnoreLoaderThread extends Thread
     @Override
     public void run()
     {
-        File ignoreFile = new File(DataStore.playerDataFolderPath + File.separator + this.playerToLoad + ".ignore");
+        File ignoreFile = new File(DataStore.playerDataFolderPath, this.playerToLoad + ".ignore");
 
         //if the file doesn't exist, there's nothing to do here
         if (!ignoreFile.exists()) return;
@@ -39,7 +40,7 @@ class IgnoreLoaderThread extends Thread
                 needRetry = false;
 
                 //read the file content and immediately close it
-                List<String> lines = Files.readLines(ignoreFile, Charset.forName("UTF-8"));
+                List<String> lines = Files.readLines(ignoreFile, StandardCharsets.UTF_8);
 
                 //each line is one ignore.  asterisks indicate administrative ignores
                 for (String line : lines)

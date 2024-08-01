@@ -4,7 +4,7 @@
 
     <groupId>com.griefprevention</groupId>
     <artifactId>GriefPrevention</artifactId>
-    <version>16.18.4</version>
+    <version>16.18.5-nouish</version>
 
     <name>GriefPrevention</name>
     <description>The official self-service anti-griefing Bukkit plugin for Minecraft servers since 2011.</description>
@@ -25,12 +25,12 @@
 
     <issueManagement>
         <system>GitHub Issues</system>
-        <url>https://github.com/TechFortress/GriefPrevention/issues</url>
+        <url>https://github.com/nouish/GriefPrevention/issues</url>
     </issueManagement>
 
     <scm>
-        <developerConnection>scm:git:https://github.com/TechFortress/GriefPrevention.git</developerConnection>
-        <tag>16.18</tag>
+        <developerConnection>scm:git:https://github.com/nouish/GriefPrevention.git</developerConnection>
+        <tag>HEAD</tag>
     </scm>
 
     <repositories>
@@ -53,7 +53,6 @@
     </repositories>
 
     <build>
-        <finalName>${project.name}</finalName>
         <resources>
             <resource>
                 <directory>src/main/resources</directory>

@@ -22,6 +22,8 @@ import com.griefprevention.visualization.BoundaryVisualization;
 import com.griefprevention.visualization.VisualizationType;
 import me.ryanhamshire.GriefPrevention.events.ClaimInspectionEvent;
 import me.ryanhamshire.GriefPrevention.util.BoundingBox;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.ComponentBuilder;
 import org.bukkit.BanList;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -75,6 +77,7 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerLoginEvent.Result;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerPortalEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
@@ -98,6 +101,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -151,6 +155,42 @@ class PlayerEventHandler implements Listener
     protected void resetPattern()
     {
         this.howToClaimPattern = null;
+    }
+
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
+    void onPlayerMove(PlayerMoveEvent event)
+    {
+        Player player = event.getPlayer();
+        PlayerData playerData = instance.dataStore.getPlayerData(player.getUniqueId());
+        Claim lastClaim = playerData.lastClaim;
+        Claim claim = dataStore.getClaimAt(player.getLocation(), false, lastClaim);
+
+        if (Objects.equals(claim, lastClaim))
+        {
+            return;
+        }
+
+        playerData.lastClaim = claim;
+
+        if (claim == null)
+        {
+            player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new ComponentBuilder()
+                    .append("You've entered the Wilderness!")
+                    .color(net.md_5.bungee.api.ChatColor.RED)
+                    .create());
+        }
+        else
+        {
+            String ownerName = claim.ownerID == null
+                    ? "an administrator"
+                    : GriefPrevention.lookupPlayerName(claim.ownerID);
+
+            player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new ComponentBuilder()
+                    .append("You've entered ").color(net.md_5.bungee.api.ChatColor.GREEN)
+                    .append(ownerName).color(net.md_5.bungee.api.ChatColor.AQUA)
+                    .append("'s claim.").color(net.md_5.bungee.api.ChatColor.GREEN)
+                    .create());
+        }
     }
 
     //when a player chats, monitor for spam
@@ -1058,7 +1098,7 @@ class PlayerEventHandler implements Listener
         //them or give them away to other players before they are defeated
 
         //if in combat, don't let him drop it
-        if (!instance.config_pvp_allowCombatItemDrop && playerData.inPvpCombat())
+        if (!instance.config_pvp_allowCombatItemDrop && playerData.inPvpCombat() && !player.isDead())
         {
             GriefPrevention.sendMessage(player, TextMode.Err, Messages.PvPNoDrop);
             event.setCancelled(true);
