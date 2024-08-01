@@ -165,9 +165,25 @@ class PlayerEventHandler implements Listener
         Claim lastClaim = playerData.lastClaim;
         Claim claim = dataStore.getClaimAt(player.getLocation(), false, lastClaim);
 
+        // Skip immediately if current claim is same as last time.
         if (Objects.equals(claim, lastClaim))
         {
             return;
+        }
+
+        if (claim != null && lastClaim != null)
+        {
+            // Skip if both claims are administrative.
+            if (claim.isAdminClaim() && lastClaim.isAdminClaim())
+            {
+                return;
+            }
+
+            // Skip if both claims share the same owner.
+            if (Objects.equals(claim.getOwnerID(), lastClaim.getOwnerID()))
+            {
+                return;
+            }
         }
 
         playerData.lastClaim = claim;
