@@ -94,6 +94,8 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.BlockIterator;
 
 import java.net.InetAddress;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collection;
@@ -2116,9 +2118,9 @@ class PlayerEventHandler implements Listener
                         {
                             claim = claim.parent;
                         }
-                        Date lastLogin = new Date(Bukkit.getOfflinePlayer(claim.ownerID).getLastPlayed());
-                        Date now = new Date();
-                        long daysElapsed = (now.getTime() - lastLogin.getTime()) / (1000 * 60 * 60 * 24);
+                        OfflinePlayer claimOwner = Bukkit.getOfflinePlayer(claim.ownerID);
+                        Instant lastSeen = claimOwner.hasPlayedBefore() ? Instant.ofEpochMilli(claimOwner.getLastPlayed()) : Instant.now();
+                        long daysElapsed = ChronoUnit.DAYS.between(lastSeen, Instant.now());
 
                         GriefPrevention.sendMessage(player, TextMode.Info, Messages.PlayerOfflineTime, String.valueOf(daysElapsed));
 
