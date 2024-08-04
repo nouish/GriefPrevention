@@ -19,6 +19,7 @@
 package me.ryanhamshire.GriefPrevention;
 
 import com.google.common.io.Files;
+import com.google.common.io.MoreFiles;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
@@ -34,15 +35,18 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
 import java.util.regex.Matcher;
 
 //manages data stored in the file system
@@ -115,22 +119,38 @@ public class FlatFileDataStore extends DataStore
         }
 
         //load next claim number from file
-        File nextClaimIdFile = new File(nextClaimIdFilePath);
-        if (nextClaimIdFile.exists())
-        {
-            try (FileReader reader = new FileReader(nextClaimIdFile, StandardCharsets.UTF_8);
-                 BufferedReader inStream = new BufferedReader(reader))
-            {
-                //read the id
-                String line = inStream.readLine();
+        Path nextClaimIdPath = Path.of(nextClaimIdFilePath);
 
-                //try to parse into a long value
-                this.nextClaimID = Long.parseLong(line);
+        try
+        {
+            String line = MoreFiles.asCharSource(nextClaimIdPath, StandardCharsets.UTF_8).readFirstLine();
+
+            if (line != null)
+            {
+                try
+                {
+                    nextClaimID = Long.parseLong(line);
+                }
+                catch (NumberFormatException e)
+                {
+                    GriefPrevention.instance.getLogger().warning("File '" + nextClaimIdPath + "' contained data that is not a 64-bit integer: '" + line + "'.");
+                }
             }
-            catch (Exception e) {}
+            else
+            {
+                GriefPrevention.instance.getLogger().warning("File '" + nextClaimIdPath + "' contained empty data.");
+            }
+        }
+        catch (NoSuchFileException ignored)
+        {
+            // Indicates the file has not yet been created. The plugin is probably new on this server.
+        }
+        catch (IOException e)
+        {
+            GriefPrevention.instance.getLogger().log(Level.WARNING, "Unable to read next sequential claim ID from file '" + nextClaimIdPath + "'", e);
         }
 
-        //if converting up from schema version 0, rename player data files using UUIDs instead of player names
+        //if converting up from schema version 0, rename player data files using UUIDs instead of player namesaa
         //get a list of all the files in the claims data folder
         if (this.getSchemaVersion() == 0)
         {
@@ -162,7 +182,7 @@ public class FlatFileDataStore extends DataStore
                 String correctedCasing = UUIDFetcher.correctedNames.get(currentFilename);
                 if (correctedCasing != null && !currentFilename.equals(correctedCasing))
                 {
-                    File correctedCasingFile = new File(playerDataFolder.getPath() + File.separator + correctedCasing);
+                    File correctedCasingFile = new File(playerDataFolder, correctedCasing);
                     if (correctedCasingFile.exists())
                     {
                         continue;
@@ -226,7 +246,7 @@ public class FlatFileDataStore extends DataStore
                 {
                     claimID = this.nextClaimID;
                     this.incrementNextClaimID();
-                    File newFile = new File(claimDataFolderPath + File.separator + String.valueOf(this.nextClaimID));
+                    File newFile = new File(claimDataFolderPath, String.valueOf(this.nextClaimID));
                     files[i].renameTo(newFile);
                     files[i] = newFile;
                 }
@@ -548,22 +568,62 @@ public class FlatFileDataStore extends DataStore
     @Override
     synchronized void writeClaimToStorage(Claim claim)
     {
-        String claimID = String.valueOf(claim.id);
-        String yaml = this.getYamlForClaim(claim);
+        String yaml = getYamlForClaim(claim);
+
+        Path claimDirs = Path.of(claimDataFolderPath);
+        Path claimDataPath = claimDirs.resolve(claim.id + ".yml");
+        Path tempDataPath;
 
         try
         {
-            //open the claim's file
-            File claimFile = new File(claimDataFolderPath, claimID + ".yml");
-            Files.write(yaml.getBytes(StandardCharsets.UTF_8), claimFile);
+            tempDataPath = java.nio.file.Files.createTempFile(claimDirs, "claim", ".tmp");
+        }
+        catch (IOException e)
+        {
+            GriefPrevention.instance.getLogger().log(Level.WARNING, String.format("Unable to create temp file to save claim %d. Unable to proceed saving, meaning any changes may be lost.", claim.id), e);
+            return;
         }
 
-        //if any problem, log it
-        catch (Exception e)
+        try
         {
-            StringWriter errors = new StringWriter();
-            e.printStackTrace(new PrintWriter(errors));
-            GriefPrevention.AddLogEntry(claimID + " " + errors.toString(), CustomLogEntryTypes.Exception);
+            try
+            {
+                MoreFiles.asCharSink(tempDataPath, StandardCharsets.UTF_8).write(yaml);
+            }
+            catch (IOException e)
+            {
+                throw new IOException("Unable to write YAML to file '" + tempDataPath + "'", e);
+            }
+
+            try
+            {
+                java.nio.file.Files.move(tempDataPath, claimDataPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            catch (IOException e)
+            {
+                throw new IOException("Unable to move temporary file '" + tempDataPath + "' to '" + claimDataPath + "'", e);
+            }
+
+            if (GriefPrevention.instance.config_logs_debugEnabled)
+            {
+                GriefPrevention.instance.getLogger().info(String.format("Successfully saved claim %s to '%s'.", claim.id, claimDataPath));
+            }
+        }
+        catch (IOException e)
+        {
+            GriefPrevention.instance.getLogger().log(Level.WARNING, "Failed to save data for claim " + claim.id + ".", e);
+        }
+        finally
+        {
+            try
+            {
+                // Clean up tmp file - the file may have been created, even if the operation couldn't be completed.
+                java.nio.file.Files.deleteIfExists(tempDataPath);
+            }
+            catch (IOException ignored)
+            {
+                // Not very important
+            }
         }
     }
 
@@ -674,36 +734,81 @@ public class FlatFileDataStore extends DataStore
         //never save data for the "administrative" account.  null for claim owner ID indicates administrative account
         if (playerID == null) return;
 
-        StringBuilder fileContent = new StringBuilder();
+        StringBuilder sbuf = new StringBuilder();
+        //first line is last login timestamp //RoboMWM - no longer storing/using
+        //if(playerData.getLastLogin() == null) playerData.setLastLogin(new Date());
+        //DateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss");
+        //fileContent.append(dateFormat.format(playerData.getLastLogin()));
+        sbuf.append("\n");
+
+        //second line is accrued claim blocks
+        sbuf.append(String.valueOf(playerData.getAccruedClaimBlocks()));
+        sbuf.append("\n");
+
+        //third line is bonus claim blocks
+        sbuf.append(String.valueOf(playerData.getBonusClaimBlocks()));
+        sbuf.append("\n");
+
+        //fourth line is blank
+        sbuf.append("\n");
+
+        Path playerDataDir = Path.of(playerDataFolderPath);
+        Path playerDataPath = playerDataDir.resolve(playerID.toString());
+        Path tempPlayerDataPath;
+
         try
         {
-            //first line is last login timestamp //RoboMWM - no longer storing/using
-            //if(playerData.getLastLogin() == null) playerData.setLastLogin(new Date());
-            //DateFormat dateFormat = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss");
-            //fileContent.append(dateFormat.format(playerData.getLastLogin()));
-            fileContent.append("\n");
+            tempPlayerDataPath = java.nio.file.Files.createTempFile(playerDataDir, "playerdata", ".tmp");
+        }
+        catch (IOException e)
+        {
+            GriefPrevention.instance.getLogger().log(Level.WARNING, String.format("Unable to create temp file to save playerdata for %s. Unable to proceed save, meaning any changes may be lost.", playerID), e);
+            return;
+        }
 
-            //second line is accrued claim blocks
-            fileContent.append(String.valueOf(playerData.getAccruedClaimBlocks()));
-            fileContent.append("\n");
-
-            //third line is bonus claim blocks
-            fileContent.append(String.valueOf(playerData.getBonusClaimBlocks()));
-            fileContent.append("\n");
-
-            //fourth line is blank
-            fileContent.append("\n");
-
+        try
+        {
             //write data to file
-            File playerDataFile = new File(playerDataFolderPath, playerID.toString());
-            Files.write(fileContent.toString().getBytes(StandardCharsets.UTF_8), playerDataFile);
+            try
+            {
+                MoreFiles.asCharSink(tempPlayerDataPath, StandardCharsets.UTF_8).write(sbuf.toString());
+            }
+            catch (IOException e)
+            {
+                throw new IOException("Unable to write playerdata to temp file '" + tempPlayerDataPath + "'", e);
+            }
+
+            try
+            {
+                java.nio.file.Files.move(tempPlayerDataPath, playerDataPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            catch (IOException e)
+            {
+                throw new IOException("Unable to move temporary file '" + tempPlayerDataPath + "' to '" + playerDataPath + "'", e);
+            }
+
+            if (GriefPrevention.instance.config_logs_debugEnabled)
+            {
+                GriefPrevention.instance.getLogger().info(String.format("Successfully saved playerdata for %s to '%s'.", playerID, playerDataPath));
+            }
         }
 
         //if any problem, log it
-        catch (Exception e)
+        catch (IOException e)
         {
-            GriefPrevention.AddLogEntry("GriefPrevention: Unexpected exception saving data for player \"" + playerID.toString() + "\": " + e.getMessage());
-            e.printStackTrace();
+            GriefPrevention.instance.getLogger().log(Level.WARNING, "Failed to save playerdata for " + playerID + ":", e);
+        }
+        finally
+        {
+            try
+            {
+                // Clean up tmp file - the file may have been created, even if the operation couldn't be completed.
+                java.nio.file.Files.deleteIfExists(tempPlayerDataPath);
+            }
+            catch (IOException ignored)
+            {
+                // Not very important
+            }
         }
     }
 
@@ -713,18 +818,54 @@ public class FlatFileDataStore extends DataStore
         //increment in memory
         this.nextClaimID++;
 
-        //open the file and write the new value
-        try (FileWriter writer = new FileWriter(nextClaimIdFilePath, StandardCharsets.UTF_8);
-             BufferedWriter outStream = new BufferedWriter(writer))
+        Path nextClaimIdPath = Path.of(nextClaimIdFilePath);
+        Path tempNextClaimIdPath;
+
+        try
         {
-            outStream.write(String.valueOf(this.nextClaimID));
+            tempNextClaimIdPath = java.nio.file.Files.createTempFile("nextclaimid", ".tmp");
+        }
+        catch (IOException e)
+        {
+            GriefPrevention.instance.getLogger().log(Level.WARNING, "Unable to create temp file for nextclaimid. The plugin may try to correct this next time the server starts, but this may lead to claims being overwritten.", e);
+            return;
         }
 
-        //if any problem, log it
-        catch (Exception e)
+        try
         {
-            GriefPrevention.AddLogEntry("Unexpected exception saving next claim ID: " + e.getMessage());
-            e.printStackTrace();
+            try
+            {
+                MoreFiles.asCharSink(tempNextClaimIdPath, StandardCharsets.UTF_8).write(String.valueOf(nextClaimID));
+            }
+            catch (IOException e)
+            {
+                throw new IOException("Unable to write sequential claim id to '" + tempNextClaimIdPath + "'", e);
+            }
+
+            try
+            {
+                java.nio.file.Files.move(tempNextClaimIdPath, nextClaimIdPath, StandardCopyOption.REPLACE_EXISTING);
+            }
+            catch (IOException e)
+            {
+                throw new IOException("Unable to move temporary file '" + tempNextClaimIdPath + "' to '" + nextClaimIdPath + "'", e);
+            }
+        }
+        catch (IOException e)
+        {
+            GriefPrevention.instance.getLogger().log(Level.WARNING, "Failed to save sequential claim id. The plugin may try to correct this next time the server starts, but this may lead to claims being overwritten.", e);
+        }
+        finally
+        {
+            try
+            {
+                // Clean up tmp file - the file may have been created, even if the operation couldn't be completed.
+                java.nio.file.Files.deleteIfExists(tempNextClaimIdPath);
+            }
+            catch (IOException ignored)
+            {
+                // Not very important
+            }
         }
     }
 
