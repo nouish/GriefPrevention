@@ -142,6 +142,13 @@ public class Claim
 
     public Optional<String> getName()
     {
+        String name = this.name;
+
+        if (name == null && parent != null)
+        {
+            return parent.getName();
+        }
+
         return name != null ? Optional.of(name) : Optional.empty();
     }
 

@@ -1798,7 +1798,7 @@ public abstract class DataStore
         this.addDefault(defaults, Messages.MustHoldModificationToolForThat, "You must be holding a golden shovel to do that.", null);
         this.addDefault(defaults, Messages.StandInClaimToResize, "Stand inside the land claim you want to resize.", null);
         this.addDefault(defaults, Messages.RenameSuccess, "Claim name changed to: {0}.", "0: The new claim name.");
-        this.addDefault(defaults, Messages.BadNameInput, "Sorry, but that is not a valid name. A valid name is 3-20 characters long, and must only contain letters, numbers and spaces.", null);
+        this.addDefault(defaults, Messages.BadNameInput, "Sorry, but that is not a valid name. A valid name is 2-40 characters long, and must only contain letters, numbers and spaces.", null);
         this.addDefault(defaults, Messages.ClaimsExtendToSky, "Land claims always extend to max build height.", null);
         this.addDefault(defaults, Messages.ClaimsAutoExtendDownward, "Land claims auto-extend deeper into the ground when you place blocks under them.", null);
         this.addDefault(defaults, Messages.MinimumRadius, "Minimum radius is {0}.", "0: minimum radius");

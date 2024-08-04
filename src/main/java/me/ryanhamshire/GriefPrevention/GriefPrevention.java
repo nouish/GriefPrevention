@@ -257,7 +257,7 @@ public class GriefPrevention extends JavaPlugin
     private String databaseUserName;
     private String databasePassword;
 
-    private static final Pattern CLAIM_NAME_PATTERN = Pattern.compile("[0-9a-zA-Z-_ ']{3,20}");
+    private static final Pattern CLAIM_NAME_PATTERN = Pattern.compile("[0-9a-zA-Z-_ ']{2,40}");
 
     //how far away to search from a tree trunk for its branch blocks
     public static final int TREE_RADIUS = 5;
