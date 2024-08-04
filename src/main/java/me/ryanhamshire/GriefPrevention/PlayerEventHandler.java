@@ -175,14 +175,14 @@ class PlayerEventHandler implements Listener
 
         if (claim != null && lastClaim != null)
         {
-            // Skip if both claims are administrative.
-            if (claim.isAdminClaim() && lastClaim.isAdminClaim())
+            // Skip if both claims are administrative and have the same name.
+            if (claim.isAdminClaim() && lastClaim.isAdminClaim() && Objects.equals(claim.getName(), lastClaim.getName()))
             {
                 return;
             }
 
-            // Skip if both claims share the same owner.
-            if (Objects.equals(claim.getOwnerID(), lastClaim.getOwnerID()))
+            // Skip if both claims share the same owner and name
+            if (Objects.equals(claim.getOwnerID(), lastClaim.getOwnerID()) && Objects.equals(claim.getName(), lastClaim.getName()))
             {
                 return;
             }
@@ -200,14 +200,29 @@ class PlayerEventHandler implements Listener
         else
         {
             String ownerName = claim.ownerID == null
-                    ? "an administrator"
+                    ? "the administrators"
                     : GriefPrevention.lookupPlayerName(claim.ownerID);
 
-            player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new ComponentBuilder()
-                    .append("You've entered ").color(net.md_5.bungee.api.ChatColor.GREEN)
-                    .append(ownerName).color(net.md_5.bungee.api.ChatColor.AQUA)
-                    .append("'s claim.").color(net.md_5.bungee.api.ChatColor.GREEN)
-                    .create());
+            String claimName = claim.getName().orElse(null);
+
+            if (claimName != null)
+            {
+                player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new ComponentBuilder()
+                        .append("You've entered \"").color(net.md_5.bungee.api.ChatColor.GREEN)
+                        .append(claimName).color(net.md_5.bungee.api.ChatColor.AQUA)
+                        .append("\" by ").color(net.md_5.bungee.api.ChatColor.GREEN)
+                        .append(ownerName).color(net.md_5.bungee.api.ChatColor.AQUA)
+                        .append(".").color(net.md_5.bungee.api.ChatColor.GREEN)
+                        .create());
+            }
+            else
+            {
+                player.spigot().sendMessage(ChatMessageType.ACTION_BAR, new ComponentBuilder()
+                        .append("You've entered ").color(net.md_5.bungee.api.ChatColor.GREEN)
+                        .append(ownerName).color(net.md_5.bungee.api.ChatColor.AQUA)
+                        .append("'s claim.").color(net.md_5.bungee.api.ChatColor.GREEN)
+                        .create());
+            }
         }
     }
 

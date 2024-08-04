@@ -242,6 +242,8 @@ public enum Messages
     IsIgnoringYou,
     MustHoldModificationToolForThat,
     StandInClaimToResize,
+    RenameSuccess,
+    BadNameInput,
     ClaimsExtendToSky,
     ClaimsAutoExtendDownward,
     MinimumRadius,

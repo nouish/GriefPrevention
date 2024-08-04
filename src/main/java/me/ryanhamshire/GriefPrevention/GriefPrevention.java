@@ -18,27 +18,6 @@
 
 package me.ryanhamshire.GriefPrevention;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
-import java.util.UUID;
-import java.util.Vector;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
-import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.griefprevention.visualization.BoundaryVisualization;
@@ -83,6 +62,27 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.UUID;
+import java.util.Vector;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
+import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class GriefPrevention extends JavaPlugin
 {
@@ -257,6 +257,7 @@ public class GriefPrevention extends JavaPlugin
     private String databaseUserName;
     private String databasePassword;
 
+    private static final Pattern CLAIM_NAME_PATTERN = Pattern.compile("[0-9a-zA-Z-_ ']{3,20}");
 
     //how far away to search from a tree trunk for its branch blocks
     public static final int TREE_RADIUS = 5;
@@ -1527,6 +1528,11 @@ public class GriefPrevention extends JavaPlugin
                             .append(String.valueOf(claim.id))
                             .color(net.md_5.bungee.api.ChatColor.YELLOW)
                             .append("\n")
+                            .append("Name: ")
+                            .color(net.md_5.bungee.api.ChatColor.GRAY)
+                            .append(claim.getName().orElse("<unnamed>"))
+                            .color(net.md_5.bungee.api.ChatColor.YELLOW)
+                            .append("\n")
                             .append("Owner: ")
                             .color(net.md_5.bungee.api.ChatColor.GRAY)
                             .append(trustEntryToPlayerName(claim.ownerID == null ? "public" : claim.ownerID.toString()))
@@ -2734,7 +2740,46 @@ public class GriefPrevention extends JavaPlugin
 
             return true;
         }
+        else if (cmd.getName().equalsIgnoreCase("nameclaim") && player != null)
+        {
+            final String newName = args.length >= 1 ? String.join(" ", args) : null;
 
+            // Validate new name
+            if (newName != null && !CLAIM_NAME_PATTERN.matcher(newName).matches())
+            {
+                GriefPrevention.sendMessage(player, TextMode.Err, Messages.BadNameInput);
+                return true;
+            }
+
+            //which claim is being abandoned?
+            Claim claim = this.dataStore.getClaimAt(player.getLocation(), true /*ignore height*/, null);
+            if (claim == null)
+            {
+                GriefPrevention.sendMessage(player, TextMode.Instr, Messages.DeleteClaimMissing);
+                return true;
+            }
+
+            //verify ownership
+            if ((claim.isAdminClaim() && !player.hasPermission("griefprevention.adminclaims"))
+                    || (!claim.isAdminClaim() && !player.getUniqueId().equals(claim.getOwnerID())))
+            {
+                PlayerData playerData = dataStore.getPlayerData(player.getUniqueId());
+                if (!playerData.ignoreClaims)
+                {
+                    String who = claim.isAdminClaim() ? "the administrators" : claim.getOwnerName();
+                    GriefPrevention.sendMessage(player, TextMode.Err, Messages.OnlyOwnersModifyClaims, who);
+                    return true;
+                }
+            }
+
+            claim.setName(newName);
+            sendMessage(player, TextMode.Instr, Messages.RenameSuccess, newName != null ? newName : "<unnamed>");
+
+            // IO write on main thread.
+            // This is not ideal, but it is consistent with prexisting claim-commands.
+            dataStore.saveClaim(claim);
+            return true;
+        }
         //givepet
         else if (cmd.getName().equalsIgnoreCase("givepet") && player != null)
         {

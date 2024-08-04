@@ -218,6 +218,10 @@ commands:
       description: Gives a player a manual about claiming land.
       usage: /<command> <player>
       permission: griefprevention.claimbook
+    nameclaim:
+      description: Set the name for the current claim.
+      usage: /<command> <name>
+      permission: griefprevention.name
 permissions:
     griefprevention.createclaims:
         description: Grants permission to create claims.
@@ -229,6 +233,7 @@ permissions:
             griefprevention.restorenatureaggressive: true
             griefprevention.ignoreclaims: true
             griefprevention.adminclaims: true
+            griefprevention.name: true
             griefprevention.adjustclaimblocks: true
             griefprevention.deleteclaims: true
             griefprevention.spam: true
@@ -291,6 +296,9 @@ permissions:
     griefprevention.adjustclaimblocks:
         description: Grants permission to add or remove bonus blocks from a player's account.
         default: op
+    griefprevention.name:
+        description: Grants permission to set a name on claims.
+        default: true
     griefprevention.spam:
         description: Grants permission to log in, send messages, and send commands rapidly.
         default: op

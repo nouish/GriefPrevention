@@ -46,6 +46,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Supplier;
@@ -65,6 +66,8 @@ public class Claim
 
     //id number.  unique to this claim, never changes.
     Long id = null;
+
+    private String name;
 
     //ownerID.  for admin claims, this is NULL
     //use getOwnerName() to get a friendly name (will be "an administrator" for admin claims)
@@ -130,6 +133,16 @@ public class Claim
         if (this.checkPermission(defender, ClaimPermission.Access, null) != null) return false;
 
         return true;
+    }
+
+    public void setName(String name)
+    {
+        this.name = name;
+    }
+
+    public Optional<String> getName()
+    {
+        return name != null ? Optional.of(name) : Optional.empty();
     }
 
     //removes any lava above sea level in a claim

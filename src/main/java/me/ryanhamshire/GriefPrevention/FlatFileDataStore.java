@@ -40,6 +40,7 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -482,6 +483,8 @@ public class FlatFileDataStore extends DataStore
             }
         }
 
+        String name = yaml.getString("Name");
+
         List<String> builders = yaml.getStringList("Builders");
 
         List<String> containers = yaml.getStringList("Containers");
@@ -498,6 +501,7 @@ public class FlatFileDataStore extends DataStore
         claim = new Claim(lesserBoundaryCorner, greaterBoundaryCorner, ownerID, builders, containers, accessors, managers, inheritNothing, claimID);
         claim.modifiedDate = new Date(lastModifiedDate);
         claim.id = claimID;
+        claim.setName(name);
 
         return claim;
     }
@@ -514,6 +518,8 @@ public class FlatFileDataStore extends DataStore
         String ownerID = "";
         if (claim.ownerID != null) ownerID = claim.ownerID.toString();
         yaml.set("Owner", ownerID);
+
+        yaml.set("Name", claim.getName().orElse(null));
 
         ArrayList<String> builders = new ArrayList<>();
         ArrayList<String> containers = new ArrayList<>();
