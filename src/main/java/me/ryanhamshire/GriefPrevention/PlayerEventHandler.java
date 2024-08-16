@@ -199,9 +199,31 @@ class PlayerEventHandler implements Listener
         }
         else
         {
-            String ownerName = claim.ownerID == null
-                    ? "the administrators"
-                    : GriefPrevention.lookupPlayerName(claim.ownerID);
+            String ownerName;
+
+            if (claim.isAdminClaim())
+            {
+                if (claim.parent != null)
+                {
+                    List<String> managers = claim.managers;
+                    if (managers.size() == 1)
+                    {
+                        ownerName = GriefPrevention.lookupPlayerName(managers.get(0));
+                    }
+                    else
+                    {
+                        ownerName = "the administrators";
+                    }
+                }
+                else
+                {
+                    ownerName = "the administrators";
+                }
+            }
+            else
+            {
+                ownerName = GriefPrevention.lookupPlayerName(claim.getOwnerID());
+            }
 
             String claimName = claim.getName().orElse(null);
 
