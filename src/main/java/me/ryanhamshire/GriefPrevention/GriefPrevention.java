@@ -64,7 +64,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
@@ -73,12 +76,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -803,9 +808,7 @@ public class GriefPrevention extends JavaPlugin
         this.config_pvp_protectPets = config.getBoolean("GriefPrevention.PvP.ProtectPetsOutsideLandClaims", false);
 
         //optional database settings
-        this.databaseUrl = config.getString("GriefPrevention.Database.URL", "");
-        this.databaseUserName = config.getString("GriefPrevention.Database.UserName", "");
-        this.databasePassword = config.getString("GriefPrevention.Database.Password", "");
+        loadDatabaseSettings(config);
 
         this.config_advanced_fixNegativeClaimblockAmounts = config.getBoolean("GriefPrevention.Advanced.fixNegativeClaimblockAmounts", true);
         this.config_advanced_claim_expiration_check_rate = config.getInt("GriefPrevention.Advanced.ClaimExpirationCheckRate", 60);
@@ -943,10 +946,6 @@ public class GriefPrevention extends JavaPlugin
         outConfig.set("GriefPrevention.HardModeZombiesBreakDoors", this.config_zombiesBreakDoors);
         outConfig.set("GriefPrevention.MobProjectilesChangeBlocks", this.config_mobProjectilesChangeBlocks);
 
-        outConfig.set("GriefPrevention.Database.URL", this.databaseUrl);
-        outConfig.set("GriefPrevention.Database.UserName", this.databaseUserName);
-        outConfig.set("GriefPrevention.Database.Password", this.databasePassword);
-
         outConfig.set("GriefPrevention.UseBanCommand", this.config_ban_useCommand);
         outConfig.set("GriefPrevention.BanCommandPattern", this.config_ban_commandFormat);
 
@@ -1005,6 +1004,59 @@ public class GriefPrevention extends JavaPlugin
         for (String command : commands)
         {
             this.config_pvp_blockedCommands.add(command.trim().toLowerCase());
+        }
+    }
+
+    private void loadDatabaseSettings(@NotNull FileConfiguration legacyConfig)
+    {
+        File databasePropsFile = new File(DataStore.dataLayerFolderPath, "database.properties");
+        Properties databaseProps = new Properties();
+
+        // If properties file exists, use it - old config has already been migrated.
+        if (databasePropsFile.exists() && databasePropsFile.isFile())
+        {
+            try (FileReader reader = new FileReader(databasePropsFile, StandardCharsets.UTF_8))
+            {
+                // Load properties from file.
+                databaseProps.load(reader);
+
+                // Set values from loaded properties.
+                databaseUrl = databaseProps.getProperty("jdbcUrl", "");
+                databaseUserName = databaseProps.getProperty("username", "");
+                databasePassword = databaseProps.getProperty("password", "");
+            }
+            catch (IOException e)
+            {
+                getLogger().log(Level.SEVERE, "Unable to read database.properties", e);
+            }
+
+            return;
+        }
+
+        // Otherwise, database details may not have been migrated from legacy configuration.
+        // Try to load them.
+        databaseUrl = legacyConfig.getString("GriefPrevention.Database.URL", "");
+        databaseUserName = legacyConfig.getString("GriefPrevention.Database.UserName", "");
+        databasePassword = legacyConfig.getString("GriefPrevention.Database.Password", "");
+
+        // If not in use already, database settings are "secret" to discourage adoption until datastore is rewritten.
+        if (databaseUrl.isBlank()) {
+            return;
+        }
+
+        // Set properties to loaded values.
+        databaseProps.setProperty("jdbcUrl", databaseUrl);
+        databaseProps.setProperty("username", databaseUserName);
+        databaseProps.setProperty("password", databasePassword);
+
+        // Write properties file for future usage.
+        try (FileWriter writer = new FileWriter(databasePropsFile, StandardCharsets.UTF_8))
+        {
+            databaseProps.store(writer, null);
+        }
+        catch (IOException e)
+        {
+            getLogger().log(Level.SEVERE, "Unable to write database.properties", e);
         }
     }
 
@@ -1111,25 +1163,70 @@ public class GriefPrevention extends JavaPlugin
 
             if (radius < 0) radius = 0;
 
-            Location lc = player.getLocation().add(-radius, 0, -radius);
-            Location gc = player.getLocation().add(radius, 0, radius);
-
-            //player must have sufficient unused claim blocks
-            int area = Math.abs((gc.getBlockX() - lc.getBlockX() + 1) * (gc.getBlockZ() - lc.getBlockZ() + 1));
-            int remaining = playerData.getRemainingClaimBlocks();
-            if (remaining < area)
+            Location playerLoc = player.getLocation();
+            int lesserX;
+            int lesserZ;
+            int greaterX;
+            int greaterZ;
+            try
             {
-                GriefPrevention.sendMessage(player, TextMode.Err, Messages.CreateClaimInsufficientBlocks, String.valueOf(area - remaining));
-                GriefPrevention.instance.dataStore.tryAdvertiseAdminAlternatives(player);
+                lesserX = Math.subtractExact(playerLoc.getBlockX(), radius);
+                lesserZ = Math.subtractExact(playerLoc.getBlockZ(), radius);
+                greaterX = Math.addExact(playerLoc.getBlockX(), radius);
+                greaterZ = Math.addExact(playerLoc.getBlockZ(), radius);
+            }
+            catch (ArithmeticException e)
+            {
+                GriefPrevention.sendMessage(player, TextMode.Err, Messages.CreateClaimInsufficientBlocks, String.valueOf(Integer.MAX_VALUE));
                 return true;
             }
 
-            CreateClaimResult result = this.dataStore.createClaim(lc.getWorld(),
-                    lc.getBlockX(), gc.getBlockX(),
-                    lc.getBlockY() - GriefPrevention.instance.config_claims_claimsExtendIntoGroundDistance - 1,
-                    gc.getWorld().getHighestBlockYAt(gc) - GriefPrevention.instance.config_claims_claimsExtendIntoGroundDistance - 1,
-                    lc.getBlockZ(), gc.getBlockZ(),
-                    player.getUniqueId(), null, null, player);
+            World world = player.getWorld();
+
+            int lesserY;
+            try
+            {
+                lesserY = Math.subtractExact(Math.subtractExact(playerLoc.getBlockY(), config_claims_claimsExtendIntoGroundDistance), 1);
+            } catch (ArithmeticException e)
+            {
+                lesserY = world.getMinHeight();
+            }
+
+            UUID ownerId;
+            if (playerData.shovelMode == ShovelMode.Admin)
+            {
+                ownerId = null;
+            } else
+            {
+                //player must have sufficient unused claim blocks
+                int area;
+                try
+                {
+                    int dX = Math.addExact(Math.subtractExact(greaterX, lesserX), 1);
+                    int dZ = Math.addExact(Math.subtractExact(greaterZ, lesserZ), 1);
+                    area = Math.abs(Math.multiplyExact(dX, dZ));
+                }
+                catch (ArithmeticException e)
+                {
+                    GriefPrevention.sendMessage(player, TextMode.Err, Messages.CreateClaimInsufficientBlocks, String.valueOf(Integer.MAX_VALUE));
+                    return true;
+                }
+                int remaining = playerData.getRemainingClaimBlocks();
+                if (remaining < area)
+                {
+                    GriefPrevention.sendMessage(player, TextMode.Err, Messages.CreateClaimInsufficientBlocks, String.valueOf(area - remaining));
+                    dataStore.tryAdvertiseAdminAlternatives(player);
+                    return true;
+                }
+                ownerId = player.getUniqueId();
+            }
+
+            CreateClaimResult result = this.dataStore.createClaim(world,
+                    lesserX, greaterX,
+                    lesserY,
+                    world.getMaxHeight(),
+                    lesserZ, greaterZ,
+                    ownerId, null, null, player);
             if (!result.succeeded || result.claim == null)
             {
                 if (result.claim != null)
