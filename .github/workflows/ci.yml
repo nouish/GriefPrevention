@@ -9,10 +9,10 @@ on:
 jobs:
   test:
     name: "Test on JDK ${{ matrix.java }}"
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        java: [ 21, 22 ]
+        java: [ 21, 23 ]
 
     steps:
       - name: "Checkout"
@@ -25,10 +25,12 @@ jobs:
           distribution: temurin
           cache: maven
 
+      - name: "Set up Maven Wrapper"
+        run: mvn --errors --batch-mode --show-version org.apache.maven.plugins:maven-wrapper-plugin:3.3.2:wrapper "-Dmaven=3.9.9"
+
       - name: "Build with Maven"
         run: |
-          ./mvnw --version
-          ./mvnw --batch-mode package
+          ./mvnw clean package --batch-mode --no-transfer-progress --show-version
           echo "artifactName=$(./mvnw help:evaluate -Dexpression=project.build.finalName -q -DforceStdout)" >> $GITHUB_ENV
 
       - name: "Upload Artifacts"
