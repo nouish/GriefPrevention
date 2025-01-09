@@ -41,10 +41,6 @@
             <url>https://repo.papermc.io/repository/maven-public</url>
         </repository>
         <repository>
-            <id>spigot-repo</id>
-            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
-        </repository>
-        <repository>
             <id>worldedit-worldguard-repo</id>
             <url>https://maven.enginehub.org/repo/</url>
         </repository>
@@ -123,6 +119,7 @@
                     <argLine>
                         -javaagent:${org.mockito:mockito-core:jar}
                         -Xshare:off
+                        -XX:+EnableDynamicAgentLoading
                     </argLine>
                 </configuration>
             </plugin>
@@ -160,11 +157,10 @@
     </build>
 
     <dependencies>
-        <!-- Bukkit API. Bukkit has never ever deployed a release version -->
         <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>spigot-api</artifactId>
-            <version>1.20.6-R0.1-SNAPSHOT</version>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>1.21.4-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
         <!-- Worldguard dependency -->
