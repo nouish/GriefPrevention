@@ -92,6 +92,7 @@ import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.BlockIterator;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.net.InetAddress;
 import java.time.Instant;
@@ -110,7 +111,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
 
-class PlayerEventHandler implements Listener
+@ApiStatus.Internal
+public class PlayerEventHandler implements Listener
 {
     private final DataStore dataStore;
     private final GriefPrevention instance;
@@ -154,7 +156,7 @@ class PlayerEventHandler implements Listener
         }
     }
 
-    protected void resetPattern()
+    public void resetPattern()
     {
         this.howToClaimPattern = null;
     }

@@ -10,6 +10,7 @@ import org.bukkit.World.Environment;
 import org.bukkit.block.Biome;
 import org.bukkit.block.BlockState;
 import org.bukkit.loot.Lootable;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
@@ -20,7 +21,8 @@ import java.util.Objects;
 import java.util.Set;
 
 //automatically extends a claim downward based on block types detected
-class AutoExtendClaimTask implements Runnable
+@ApiStatus.Internal
+public class AutoExtendClaimTask implements Runnable
 {
 
     /**
@@ -28,7 +30,7 @@ class AutoExtendClaimTask implements Runnable
      *
      * @param claim the claim to extend the depth of
      */
-    static void scheduleAsync(Claim claim)
+    public static void scheduleAsync(Claim claim)
     {
         Location lesserCorner = claim.getLesserBoundaryCorner();
         Location greaterCorner = claim.getGreaterBoundaryCorner();
