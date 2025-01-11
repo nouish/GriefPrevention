@@ -14,6 +14,8 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.regex.Pattern;
 
@@ -38,7 +40,13 @@ public final class NameClaimCommand extends AbstractClaimCommand
                 .requires(playerWithPermission("griefprevention.name"))
                 .executes(ctx -> renameTo(ctx.getSource(), null))
                 .then(argument("name", StringArgumentType.greedyString())
-                        .executes(ctx -> renameTo(ctx.getSource(), StringArgumentType.getString(ctx, "name"))))
+                .suggests((context, builder) ->
+                {
+                    List<String> list = new ArrayList<>();
+                    claim(context.getSource()).flatMap(Claim::getName).ifPresent(list::add);
+                    return CommandUtil.suggest(list, builder);
+                })
+                .executes(ctx -> renameTo(ctx.getSource(), StringArgumentType.getString(ctx, "name"))))
                 .build(),
                 "Set the name for the current claim.");
     }
@@ -69,7 +77,14 @@ public final class NameClaimCommand extends AbstractClaimCommand
             if (!playerData.ignoreClaims)
             {
                 String who = claim.isAdminClaim() ? "the administrators" : claim.getOwnerName();
-                GriefPrevention.sendMessage(player, ChatColor.RED, Messages.OnlyOwnersModifyClaims, who);
+                String message = plugin().dataStore.getMessage(Messages.OnlyOwnersModifyClaims, who);
+
+                if (player.hasPermission("griefprevention.ignoreclaims"))
+                {
+                    message = message + " " + plugin().dataStore.getMessage(Messages.IgnoreClaimsAdvertisement);
+                }
+
+                GriefPrevention.sendMessage(player, ChatColor.RED, message);
                 return 0;
             }
         }

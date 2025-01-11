@@ -1,6 +1,5 @@
 package com.griefprevention.commands;
 
-import com.mojang.brigadier.Command;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import io.papermc.paper.command.brigadier.Commands;
@@ -15,6 +14,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 import static io.papermc.paper.command.brigadier.Commands.argument;
@@ -60,6 +60,19 @@ public final class ClaimBlockModifyCommand extends AbstractCommand
                 .build(),
                 "Adds or subtracts bonus claim blocks for a player.",
                 List.of("acb"));
+
+        commands.register(literal("setaccruedclaimblocks")
+                .requires(playerWithPermission("griefprevention.adjustclaimblocks"))
+                .then(argument("targets", ArgumentTypes.players())
+                .then(argument("value", IntegerArgumentType.integer(0)).executes(ctx ->
+                {
+                    List<Player> targetsList = ctx.getArgument("targets", PlayerSelectorArgumentResolver.class).resolve(ctx.getSource());
+                    int value = IntegerArgumentType.getInteger(ctx, "value");
+                    return setAccruedClaimBlocks(ctx.getSource(), targetsList, value);
+                })))
+                .build(),
+                "Updates a player's accrued claim block total.",
+                List.of("scb"));
     }
 
     private int adjustBonusClaimBlocks(@NotNull CommandSourceStack source, @NotNull List<Player> targetsList, final int amount)
@@ -95,6 +108,36 @@ public final class ClaimBlockModifyCommand extends AbstractCommand
         {
             GriefPrevention.sendMessage(player, ChatColor.GREEN, Messages.AdjustBlocksAllSuccess, Integer.toString(amount));
             GriefPrevention.AddLogEntry("Adjusted all " + count + "players' bonus claim blocks by " + amount + ". " + builder, CustomLogEntryTypes.AdminActivity);
+        }
+
+        return count;
+    }
+
+    private int setAccruedClaimBlocks(@NotNull CommandSourceStack source, @NotNull List<Player> targetsList, final int value)
+    {
+        Player player = (Player) source.getSender();
+
+        if (targetsList.isEmpty())
+        {
+            return 0;
+        }
+
+        int count = 0;
+
+        for (Player target : targetsList)
+        {
+            count++;
+            //set player's blocks
+            PlayerData playerData = plugin().dataStore.getPlayerData(target.getUniqueId());
+            playerData.setAccruedClaimBlocks(value);
+            plugin().dataStore.savePlayerData(target.getUniqueId(), playerData);
+            logger().info("{} set {} accrued claim blocks to {}.", source.getSender().getName(), target.getName(),
+                    String.format(Locale.ROOT, "%,d", value));
+        }
+
+        if (count >= 1)
+        {
+            GriefPrevention.sendMessage(player, ChatColor.GREEN, Messages.SetClaimBlocksSuccess);
         }
 
         return count;
