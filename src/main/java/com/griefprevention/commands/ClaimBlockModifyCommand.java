@@ -77,8 +77,6 @@ public final class ClaimBlockModifyCommand extends AbstractCommand
 
     private int adjustBonusClaimBlocks(@NotNull CommandSourceStack source, @NotNull List<Player> targetsList, final int amount)
     {
-        Player player = (Player) source.getSender();
-
         int count = 0;
         StringBuilder builder = new StringBuilder();
 
@@ -106,7 +104,7 @@ public final class ClaimBlockModifyCommand extends AbstractCommand
 
         if (count >= 1)
         {
-            GriefPrevention.sendMessage(player, ChatColor.GREEN, Messages.AdjustBlocksAllSuccess, Integer.toString(amount));
+            GriefPrevention.sendMessage(source.getSender(), ChatColor.GREEN, Messages.AdjustBlocksAllSuccess, Integer.toString(amount));
             GriefPrevention.AddLogEntry("Adjusted all " + count + "players' bonus claim blocks by " + amount + ". " + builder, CustomLogEntryTypes.AdminActivity);
         }
 
@@ -115,8 +113,6 @@ public final class ClaimBlockModifyCommand extends AbstractCommand
 
     private int setAccruedClaimBlocks(@NotNull CommandSourceStack source, @NotNull List<Player> targetsList, final int value)
     {
-        Player player = (Player) source.getSender();
-
         if (targetsList.isEmpty())
         {
             return 0;
@@ -137,7 +133,7 @@ public final class ClaimBlockModifyCommand extends AbstractCommand
 
         if (count >= 1)
         {
-            GriefPrevention.sendMessage(player, ChatColor.GREEN, Messages.SetClaimBlocksSuccess);
+            GriefPrevention.sendMessage(source.getSender(), ChatColor.GREEN, Messages.SetClaimBlocksSuccess);
         }
 
         return count;
