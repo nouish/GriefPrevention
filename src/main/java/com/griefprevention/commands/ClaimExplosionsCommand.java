@@ -30,7 +30,7 @@ public final class ClaimExplosionsCommand extends AbstractClaimCommand
                 .requires(playerWithPermission("griefprevention.claims"))
                 .executes(ctx ->
                 {
-                    Player player = (Player) ctx.getSource();
+                    Player player = (Player) ctx.getSource().getSender();
                     Optional<Claim> optionalClaim = claim(ctx.getSource());
 
                     if (optionalClaim.isEmpty())
