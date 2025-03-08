@@ -17,7 +17,6 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.regex.Pattern;
 
 import static io.papermc.paper.command.brigadier.Commands.argument;
 import static io.papermc.paper.command.brigadier.Commands.literal;
@@ -26,7 +25,8 @@ import static net.kyori.adventure.text.Component.text;
 @SuppressWarnings("UnstableApiUsage")
 public final class NameClaimCommand extends AbstractClaimCommand
 {
-    private static final Pattern CLAIM_NAME_PATTERN = Pattern.compile("[0-9a-zA-Z-_ ']{2,40}");
+    private static final int CLAIM_NAME_MIN_LENGTH = 2;
+    private static final int CLAIM_NAME_MAX_LENGTH = 40;
 
     public NameClaimCommand(@NotNull GriefPrevention plugin)
     {
@@ -51,14 +51,19 @@ public final class NameClaimCommand extends AbstractClaimCommand
             "Set the name for the current claim.");
     }
 
-    private int renameTo(@NotNull CommandSourceStack context, @Nullable String newName) {
+    private int renameTo(@NotNull CommandSourceStack context, @Nullable String newName)
+    {
         Player player = (Player) context.getSender();
 
         // Validate new name
-        if (newName != null && !CLAIM_NAME_PATTERN.matcher(newName).matches())
+        if (newName != null)
         {
-            GriefPrevention.sendMessage(player, ChatColor.RED, Messages.BadNameInput);
-            return 0;
+            final int len = newName.strip().length();
+            if (len < CLAIM_NAME_MIN_LENGTH || len > CLAIM_NAME_MAX_LENGTH)
+            {
+                GriefPrevention.sendMessage(player, ChatColor.RED, Messages.BadNameInput);
+                return 0;
+            }
         }
 
         //which claim is being abandoned?
