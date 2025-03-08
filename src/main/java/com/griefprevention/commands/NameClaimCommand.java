@@ -40,15 +40,15 @@ public final class NameClaimCommand extends AbstractClaimCommand
                 .requires(playerWithPermission("griefprevention.name"))
                 .executes(ctx -> renameTo(ctx.getSource(), null))
                 .then(argument("name", StringArgumentType.greedyString())
-                .suggests((context, builder) ->
-                {
-                    List<String> list = new ArrayList<>();
-                    claim(context.getSource()).flatMap(Claim::getName).ifPresent(list::add);
-                    return CommandUtil.suggest(list, builder);
-                })
-                .executes(ctx -> renameTo(ctx.getSource(), StringArgumentType.getString(ctx, "name"))))
+                    .suggests((context, builder) ->
+                    {
+                        List<String> list = new ArrayList<>();
+                        claim(context.getSource()).flatMap(Claim::getName).ifPresent(list::add);
+                        return CommandUtil.suggest(list, builder);
+                    })
+                    .executes(ctx -> renameTo(ctx.getSource(), StringArgumentType.getString(ctx, "name"))))
                 .build(),
-                "Set the name for the current claim.");
+            "Set the name for the current claim.");
     }
 
     private int renameTo(@NotNull CommandSourceStack context, @Nullable String newName) {
@@ -92,10 +92,10 @@ public final class NameClaimCommand extends AbstractClaimCommand
         String oldName = claim.getName().orElse(null);
         claim.setName(newName);
 
-        player.sendMessage(text()
-                .append(text(plugin().dataStore.getMessage(Messages.RenameSuccess), NamedTextColor.YELLOW))
-                .append(text(Objects.requireNonNullElse(newName, "<unnamed>"), NamedTextColor.AQUA))
-                .build());
+        String message = plugin().dataStore.getMessage(
+            Messages.RenameSuccess,
+            Objects.requireNonNullElse(newName, "<unnamed>"));
+        player.sendMessage(text(message, NamedTextColor.YELLOW));
 
         if (Objects.equals(oldName, newName))
         {
