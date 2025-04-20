@@ -66,9 +66,10 @@ public final class ExtendClaimCommand extends AbstractCommand
 //            return false;
 //        }
 
-        //requires claim modification tool in hand
+        //requires claim modification tool in hand, except if player is in creative or has the extendclaim permission.
         if (player.getGameMode() != GameMode.CREATIVE
-                && player.getItemInHand().getType() != GriefPrevention.instance.config_claims_modificationTool)
+                && player.getItemInHand().getType() != GriefPrevention.instance.config_claims_modificationTool
+                && !player.hasPermission("griefprevention.extendclaim.toolbypass"))
         {
             GriefPrevention.sendMessage(player, ChatColor.RED, Messages.MustHoldModificationToolForThat);
             return 0;

@@ -49,6 +49,9 @@ permissions:
     griefprevention.siege:
         description: Grants permission to use /siege.
         default: true
+    griefprevention.extendclaim.toolbypass:
+         description: Allows a player to extend a claim without a modification tool.
+         default: false
     griefprevention.unlockdrops:
         description: Grants permission to use /unlockdrops.
         default: true
