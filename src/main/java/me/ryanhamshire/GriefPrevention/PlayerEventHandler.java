@@ -1806,8 +1806,8 @@ public class PlayerEventHandler implements Listener
                                 clickedBlockType == Material.JUKEBOX ||
                                 clickedBlockType == Material.LOOM ||
                                 clickedBlockType == Material.PUMPKIN ||
+                                clickedBlockType == Material.RESPAWN_ANCHOR ||
                                 (clickedBlockType == Material.ROOTED_DIRT && Tag.ITEMS_HOES.isTagged(event.getMaterial())) ||
-                                clickedBlockType == Material.ROOTED_DIRT ||
                                 clickedBlockType == Material.STONECUTTER ||
                                 clickedBlockType == Material.SWEET_BERRY_BUSH
                         )))
